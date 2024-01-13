@@ -1,14 +1,16 @@
 [tool.poetry]
-name = "tidb-vector"
-version = "0.0.1"
+name = "tidbvec"
+version = "0.0.4"
 description = ""
 authors = ["IANTHEREAL <argregoryian@gmail.com>"]
 readme = "README.md"
+packages = [{include = "tidb_vector"}]
+
 
 [tool.poetry.dependencies]
-python = "^3.11"
-sqlalchemy = "^2.0.25"
-numpy = "^1.26.3"
+python = ">=3.8.1,<4.0"
+SQLAlchemy = ">=1.4,<3"
+numpy = "^1"
 
 
 [build-system]
