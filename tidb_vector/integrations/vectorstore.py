@@ -258,9 +258,15 @@ class TiDBCollection:
                 stmt = sqlalchemy.delete(self._table_model).where(
                     self._table_model.id.in_(ids)
                 )
-
                 session.execute(stmt)
-            session.commit()
+                session.commit()
+            else:
+                filter = kwargs.get("filter", None)
+                if filter is not None:
+                    filter_by = self._build_filter_clause(filter)
+                    stmt = sqlalchemy.delete(self._table_model).filter(filter_by)
+                    session.execute(stmt)
+                    session.commit()
 
     def query(
         self,
