@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import logging
 import enum
 import uuid
-from typing import Any, Dict, Generator, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Generator, Iterable, List, Optional
 
 import sqlalchemy
 from sqlalchemy.orm import Session, declarative_base
@@ -224,7 +224,7 @@ class TiDBCollection:
             List[str]: The IDs assigned to the added texts.
         """
         if ids is None:
-            ids = [uuid.uuid4() for _ in texts]
+            ids = [str(uuid.uuid4()) for _ in texts]
         if not metadatas:
             metadatas = [{} for _ in texts]
 
@@ -274,7 +274,7 @@ class TiDBCollection:
         k: int = 5,
         filter: Optional[dict] = None,
         **kwargs: Any,
-    ) -> List[Tuple[QueryResult, float]]:
+    ) -> List[QueryResult]:
         """
         Perform a similarity search with score based on the given query.
 
@@ -323,7 +323,7 @@ class TiDBCollection:
             )
         return results
 
-    def _build_filter_clause(self, filter: Dict[str, str]) -> Any:
+    def _build_filter_clause(self, filter: Optional[Dict[str, Any]] = None) -> Any:
         """
         Builds the filter clause for querying the database based on the provided filter.
 
@@ -341,13 +341,17 @@ class TiDBCollection:
             for key, value in filter.items():
                 if key.lower() == "$and":
                     and_clauses = [
-                        self._build_filter_clause(condition) for condition in value
+                        self._build_filter_clause(condition)
+                        for condition in value
+                        if isinstance(condition, dict) and condition is not None
                     ]
                     filter_by_metadata = sqlalchemy.and_(*and_clauses)
                     filter_clauses.append(filter_by_metadata)
                 elif key.lower() == "$or":
                     or_clauses = [
-                        self._build_filter_clause(condition) for condition in value
+                        self._build_filter_clause(condition)
+                        for condition in value
+                        if isinstance(condition, dict) and condition is not None
                     ]
                     filter_by_metadata = sqlalchemy.or_(*or_clauses)
                     filter_clauses.append(filter_by_metadata)
