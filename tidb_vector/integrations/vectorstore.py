@@ -148,7 +148,7 @@ class TiDBCollection:
         cls,
         connection_string: str,
         collection_name: str,
-        distance_strategy: DistanceStrategy,
+        distance_strategy: DistanceStrategy = DistanceStrategy.COSINE,
         *,
         engine_args: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
@@ -244,6 +244,7 @@ class TiDBCollection:
     def delete(
         self,
         ids: Optional[List[str]] = None,
+        filter: Optional[dict] = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -253,20 +254,13 @@ class TiDBCollection:
             ids (Optional[List[str]]): A list of vector IDs to delete.
             **kwargs: Additional keyword arguments.
         """
+        filter_by = self._build_filter_clause(filter)
         with Session(self._bind) as session:
             if ids is not None:
-                stmt = sqlalchemy.delete(self._table_model).where(
-                    self._table_model.id.in_(ids)
-                )
-                session.execute(stmt)
-                session.commit()
-            else:
-                filter = kwargs.get("filter", None)
-                if filter is not None:
-                    filter_by = self._build_filter_clause(filter)
-                    stmt = sqlalchemy.delete(self._table_model).filter(filter_by)
-                    session.execute(stmt)
-                    session.commit()
+                filter_by = sqlalchemy.and_(self._table_model.id.in_(ids), filter_by)
+            stmt = sqlalchemy.delete(self._table_model).filter(filter_by)
+            session.execute(stmt)
+            session.commit()
 
     def query(
         self,
@@ -289,6 +283,7 @@ class TiDBCollection:
             A list of tuples containing relevant documents and their similarity scores.
         """
         relevant_docs = self._query_collection(query_vector, k, filter)
+
         return [
             QueryResult(
                 document=doc.document,
@@ -355,6 +350,20 @@ class TiDBCollection:
                     ]
                     filter_by_metadata = sqlalchemy.or_(*or_clauses)
                     filter_clauses.append(filter_by_metadata)
+                elif key.lower() in [
+                    "$in",
+                    "$nin",
+                    "$gt",
+                    "$gte",
+                    "$lt",
+                    "$lte",
+                    "$eq",
+                    "$ne",
+                ]:
+                    raise ValueError(
+                        f"Got unexpected filter expression: {filter}. "
+                        f"Operator {key} must be followed by a meta key. "
+                    )
                 elif isinstance(value, dict):
                     filter_by_metadata = self._create_filter_clause(key, value)
 
@@ -386,8 +395,16 @@ class TiDBCollection:
 
         """
 
-        IN, NIN, GT, GTE, LT, LTE = "$in", "$nin", "$gt", "$gte", "$lt", "$lte"
-        EQ, NE, OR, AND = "$eq", "$ne", "$or", "$and"
+        IN, NIN, GT, GTE, LT, LTE, EQ, NE = (
+            "$in",
+            "$nin",
+            "$gt",
+            "$gte",
+            "$lt",
+            "$lte",
+            "$eq",
+            "$ne",
+        )
 
         json_key = sqlalchemy.func.json_extract(self._table_model.meta, f"$.{key}")
         value_case_insensitive = {k.lower(): v for k, v in value.items()}
@@ -408,18 +425,6 @@ class TiDBCollection:
             filter_by_metadata = json_key != value_case_insensitive[NE]
         elif EQ in map(str.lower, value):
             filter_by_metadata = json_key == value_case_insensitive[EQ]
-        elif OR in map(str.lower, value):
-            or_clauses = [
-                self._build_filter_clause(sub_value)
-                for sub_value in value_case_insensitive[OR]
-            ]
-            filter_by_metadata = sqlalchemy.or_(or_clauses)
-        elif AND in map(str.lower, value):
-            and_clauses = [
-                self._build_filter_clause(sub_value)
-                for sub_value in value_case_insensitive[AND]
-            ]
-            filter_by_metadata = sqlalchemy.and_(and_clauses)
         else:
             logger.warning(
                 f"Unsupported filter operator: {value}. Consider using "
