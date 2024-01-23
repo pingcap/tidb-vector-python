@@ -47,6 +47,15 @@ def _create_vector_model(table_name: str):
         embedding = sqlalchemy.Column(VectorType())
         document = sqlalchemy.Column(sqlalchemy.Text, nullable=True)
         meta = sqlalchemy.Column(sqlalchemy.JSON, nullable=True)
+        create_time = sqlalchemy.Column(
+            sqlalchemy.DateTime, server_default=sqlalchemy.text("CURRENT_TIMESTAMP")
+        )
+        update_time = sqlalchemy.Column(
+            sqlalchemy.DateTime,
+            server_default=sqlalchemy.text(
+                "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+            ),
+        )
 
     _classes = VectorTableModel
     return _classes
