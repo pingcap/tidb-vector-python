@@ -31,10 +31,10 @@ def _create_vector_model(table_name: str):
     if _classes is not None:
         return _classes
 
-    class SQLVectorModel(Base):
+    class VectorTableModel(Base):
         """
-        embedding: The column to store the vector.
-        document: The column to store the text document.
+        embedding: The column to store the vector data.
+        document: The column to store the document content.
         meta: The column to store the metadata of the document.
             It can be used to filter the document when performing search
             e.g. {"title": "The title of the document", "custom_id": "123"}
@@ -48,7 +48,7 @@ def _create_vector_model(table_name: str):
         document = sqlalchemy.Column(sqlalchemy.Text, nullable=True)
         meta = sqlalchemy.Column(sqlalchemy.JSON, nullable=True)
 
-    _classes = SQLVectorModel
+    _classes = VectorTableModel
     return _classes
 
 
@@ -60,29 +60,29 @@ class QueryResult:
     distance: float
 
 
-class TiDBCollection:
+class VectorStore:
     def __init__(
         self,
         connection_string: str,
-        collection_name: str,
+        table_name: str,
         distance_strategy: DistanceStrategy = DistanceStrategy.COSINE,
         *,
         engine_args: Optional[Dict[str, Any]] = None,
-        pre_delete_collection: bool = False,
+        pre_delete_table: bool = False,
         **kwargs: Any,
     ) -> None:
         """
-        Initialize a TiDBVector.
+        Initializes a vector store in a specified table within a TiDB database.
 
         Args:
             connection_string (str): The connection string for the TiDB database,
-                format: "mysql+pymysql://root@34.212.137.91:4000/test".
-            collection_name (str): The name of the collection,
+                format: "mysql+pymysql://root@127.0.0.1:4000/test".
+            table_name (str): The name of the table used to store the vectors.
             distance_strategy: The strategy used for similarity search,
                 defaults to "cosine", valid values: "l2", "cosine".
             engine_args (Optional[Dict]): Additional arguments for the database engine,
                 defaults to None.
-            pre_delete_collection: Delete the collection before creating a new one,
+            pre_delete_table: Delete the table before creating a new one,
                 defaults to False.
             **kwargs (Any): Additional keyword arguments.
 
@@ -92,24 +92,24 @@ class TiDBCollection:
         self.connection_string = connection_string
         self._distance_strategy = distance_strategy
         self._engine_args = engine_args or {}
-        self._pre_delete_collection = pre_delete_collection
+        self._pre_delete_table = pre_delete_table
         self._bind = self._create_engine()
-        self._table_model = _create_vector_model(collection_name)
+        self._table_model = _create_vector_model(table_name)
         _ = self.distance_strategy  # check if distance strategy is valid
         self._create_table_if_not_exists()
 
     def _create_table_if_not_exists(self) -> None:
         """
-        If the `self._pre_delete_collection` flag is set,
+        If the `self._pre_delete_table` flag is set,
         the existing table will be dropped before creating a new one.
         """
-        if self._pre_delete_collection:
-            self.drop_collection()
+        if self._pre_delete_table:
+            self.drop_table()
         with Session(self._bind) as session, session.begin():
             Base.metadata.create_all(session.get_bind())
             # wait for tidb support vector index
 
-    def drop_collection(self) -> None:
+    def drop_table(self) -> None:
         """Drops the table if it exists."""
         with Session(self._bind) as session, session.begin():
             Base.metadata.drop_all(session.get_bind())
@@ -119,7 +119,7 @@ class TiDBCollection:
         return sqlalchemy.create_engine(url=self.connection_string, **self._engine_args)
 
     def __del__(self) -> None:
-        """Close the connection when the object is deleted."""
+        """Close the connection when the program is closed"""
         if isinstance(self._bind, sqlalchemy.engine.Connection):
             self._bind.close()
 
@@ -144,22 +144,22 @@ class TiDBCollection:
             )
 
     @classmethod
-    def get_collection(
+    def get_vectorstore(
         cls,
         connection_string: str,
-        collection_name: str,
+        table_name: str,
         distance_strategy: DistanceStrategy = DistanceStrategy.COSINE,
         *,
         engine_args: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
-    ) -> "TiDBCollection":
+    ) -> "VectorStore":
         """
-        Create a VectorStore instance from an existing collection in the TiDB database.
+        Create a VectorStore instance from an existing table in the TiDB database.
 
         Args:
             connection_string (str): The connection string for the TiDB database,
-                format: "mysql+pymysql://root@34.212.137.91:4000/test".
-            collection_name (str, optional): The name of the collection,
+                format: "mysql+pymysql://root@127.0.0.1:4000/test".
+            table_name (str, optional): The name of the table used to store vector data.
             distance_strategy: The distance strategy used for similarity search,
                 allowed strategies: "l2", "cosine".
             engine_args: Additional arguments for the underlying database engine,
@@ -183,17 +183,17 @@ class TiDBCollection:
                 if (
                     connection.execute(
                         table_query,
-                        {"table_name": collection_name},
+                        {"table_name": table_name},
                     ).fetchone()
                     is None
                 ):
                     raise sqlalchemy.exc.NoSuchTableError(
-                        f"The table '{collection_name}' does not exist in the database."
+                        f"The table '{table_name}' does not exist in the database."
                     )
 
             return cls(
                 connection_string=connection_string,
-                collection_name=collection_name,
+                table_name=table_name,
                 distance_strategy=distance_strategy,
                 engine_args=engine_args,
                 **kwargs,
@@ -248,7 +248,7 @@ class TiDBCollection:
         **kwargs: Any,
     ) -> None:
         """
-        Delete vectors from the TiDB vector.
+        Delete vector data from the TiDB vector.
 
         Args:
             ids (Optional[List[str]]): A list of vector IDs to delete.
@@ -282,7 +282,7 @@ class TiDBCollection:
         Returns:
             A list of tuples containing relevant documents and their similarity scores.
         """
-        relevant_docs = self._query_collection(query_vector, k, filter)
+        relevant_docs = self._vector_search(query_vector, k, filter)
 
         return [
             QueryResult(
@@ -294,13 +294,13 @@ class TiDBCollection:
             for doc in relevant_docs
         ]
 
-    def _query_collection(
+    def _vector_search(
         self,
         query_embedding: List[float],
         k: int = 5,
         filter: Optional[Dict[str, str]] = None,
     ) -> List[Any]:
-        """Query from collection."""
+        """vector search from table."""
 
         filter_by = self._build_filter_clause(filter)
         with Session(self._bind) as session:
@@ -318,22 +318,22 @@ class TiDBCollection:
             )
         return results
 
-    def _build_filter_clause(self, filter: Optional[Dict[str, Any]] = None) -> Any:
+    def _build_filter_clause(self, filters: Optional[Dict[str, Any]] = None) -> Any:
         """
-        Builds the filter clause for querying the database based on the provided filter.
+        Builds the filter clause for querying based on the provided filters.
 
         Args:
             filter (Dict[str, str]): The filter conditions to apply.
 
         Returns:
-            Any: The filter clause to be used in the database query.
+            Any: The filter clause to be used in the query on TiDB.
         """
 
         filter_by = sqlalchemy.true()
-        if filter is not None:
+        if filters is not None:
             filter_clauses = []
 
-            for key, value in filter.items():
+            for key, value in filters.items():
                 if key.lower() == "$and":
                     and_clauses = [
                         self._build_filter_clause(condition)

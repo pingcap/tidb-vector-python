@@ -8,10 +8,10 @@ import sqlalchemy
 import pytest
 
 try:
-    from tidb_vector.integrations import TiDBCollection  # noqa
+    from tidb_vector.integrations import VectorStore  # noqa
 
-    COLLECTION_NAME = "tidb_vector_index_test"
-    CONNECTION_STRING = os.getenv("TEST_TiDB_VECTOR_URL", "")
+    TABLE_NAME = "tidb_vector_store_test"
+    CONNECTION_STRING = os.getenv("TEST_TiDB_CONNECTION_URL", "")
 
     if CONNECTION_STRING == "":
         raise OSError("TEST_TiDB_URL environment variable is not set")
@@ -58,22 +58,22 @@ def node_embeddings() -> Tuple[list[str], list[str], list[list[float]], list[dic
 def test_basic_search(
     node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
 ) -> None:
-    """Test end to end construction and search."""
+    """Test end to end tidb vectorestore construction and search."""
 
-    tidbcol = TiDBCollection(
-        collection_name=COLLECTION_NAME,
+    tidb_vs = VectorStore(
+        table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
-        pre_delete_collection=True,
+        pre_delete_table=True,
     )
 
     # Add document to the tidb vector
-    tidbcol.insert(
+    tidb_vs.insert(
         texts=node_embeddings[1], ids=node_embeddings[0], embeddings=node_embeddings[2]
     )
 
     # similarity search
-    results = tidbcol.query(text_to_embedding("foo"), k=3)
-    tidbcol.drop_collection()
+    results = tidb_vs.query(text_to_embedding("foo"), k=3)
+    tidb_vs.drop_table()
 
     # Check results
     assert len(results) == 3
@@ -83,53 +83,53 @@ def test_basic_search(
 
 
 @pytest.mark.skipif(not tidb_available, reason="tidb is not available")
-def test_get_existing_collection(
+def test_get_existing_table(
     node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
 ) -> None:
-    """Test get collection function."""
+    """Test get vector store function."""
 
-    # prepare a collection
-    tidbcol = TiDBCollection(
-        collection_name=COLLECTION_NAME,
+    # prepare a table
+    tidb_vs = VectorStore(
+        table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
-        pre_delete_collection=True,
+        pre_delete_table=True,
     )
 
-    tidbcol.insert(
+    tidb_vs.insert(
         texts=node_embeddings[1],
         ids=node_embeddings[0],
         embeddings=node_embeddings[2],
         metadatas=node_embeddings[3],
     )
 
-    # try to get the existing collection
-    tidbcol2 = TiDBCollection.get_collection(
-        collection_name=COLLECTION_NAME,
+    # try to get the existing vector store
+    tidb_vs2 = VectorStore.get_vectorstore(
+        table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
     )
-    results = tidbcol2.query(text_to_embedding("bar"), k=3)
-    # delete the collection
-    tidbcol2.drop_collection()
+    results = tidb_vs2.query(text_to_embedding("bar"), k=3)
+    # delete the table
+    tidb_vs2.drop_table()
     # check the results
     assert len(results) == 3
     assert results[0].document == node_embeddings[1][1]
     assert results[0].distance == 0.0
     assert results[0].id == node_embeddings[0][1]
 
-    # it should fail if the collection had been dropped
+    # it should fail if the table had been dropped
     try:
-        results = tidbcol.query(text_to_embedding("bar"), k=3)
-        assert False, "dropped collection testing raised an error"
+        results = tidb_vs.query(text_to_embedding("bar"), k=3)
+        assert False, "dropped table testing raised an error"
     except Exception:
         pass
 
-    # try to get non-existing collection
+    # try to get non-existing table
     try:
-        _ = TiDBCollection.get_collection(
-            collection_name=COLLECTION_NAME,
+        _ = VectorStore.get_vectorstore(
+            table_name=TABLE_NAME,
             connection_string=CONNECTION_STRING,
         )
-        assert False, "non-existing collection testing raised an error"
+        assert False, "non-existing table testing raised an error"
     except sqlalchemy.exc.NoSuchTableError:
         pass
 
@@ -140,38 +140,38 @@ def test_insert(
 ) -> None:
     """Test insert function."""
 
-    tidbcol = TiDBCollection(
-        collection_name=COLLECTION_NAME,
+    tidb_vs = VectorStore(
+        table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
-        pre_delete_collection=True,
+        pre_delete_table=True,
     )
 
     # Add document to the tidb vector
-    ids = tidbcol.insert(
+    ids = tidb_vs.insert(
         texts=node_embeddings[1],
         embeddings=node_embeddings[2],
         metadatas=node_embeddings[3],
     )
 
-    results = tidbcol.query(text_to_embedding("bar"), k=3)
+    results = tidb_vs.query(text_to_embedding("bar"), k=3)
 
     assert len(results) == 3
     assert results[0].document == node_embeddings[1][1]
     assert results[0].distance == 0.0
     assert results[0].id == ids[1]
 
-    # test insert duplicate ids, it should raise an error
+    # Insert duplicate ids, it should raise an error
     try:
-        _ = tidbcol.insert(
+        _ = tidb_vs.insert(
             ids=ids,
             texts=node_embeddings[1],
             embeddings=node_embeddings[2],
             metadatas=node_embeddings[3],
         )
-        tidbcol.drop_collection()
-        assert False, "inserting to existing collection raised an error"
+        tidb_vs.drop_table()
+        assert False, "inserting to existing table raised an error"
     except sqlalchemy.exc.IntegrityError:
-        tidbcol.drop_collection()
+        tidb_vs.drop_table()
         pass
 
 
@@ -182,20 +182,20 @@ def test_delete(
     """Test delete function."""
 
     # prepare data
-    tidbcol = TiDBCollection(
-        collection_name=COLLECTION_NAME,
+    tidb_vs = VectorStore(
+        table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
-        pre_delete_collection=True,
+        pre_delete_table=True,
     )
 
-    ids = tidbcol.insert(
+    ids = tidb_vs.insert(
         ids=node_embeddings[0],
         texts=node_embeddings[1],
         embeddings=node_embeddings[2],
         metadatas=node_embeddings[3],
     )
 
-    results = tidbcol.query(text_to_embedding("foo"), k=3)
+    results = tidb_vs.query(text_to_embedding("foo"), k=3)
 
     assert len(results) == 3
     assert results[0].document == node_embeddings[1][0]
@@ -204,58 +204,58 @@ def test_delete(
 
     # test delete by id
 
-    # it should fail to delete first two documents caused by meta filter
-    tidbcol.delete([ids[1], ids[0]], filter={"category": "P2"})
-    results = tidbcol.query(text_to_embedding("foo"), k=4)
+    # it should fail to delete first two documents conflicted with meta filter
+    tidb_vs.delete([ids[1], ids[0]], filter={"category": "P2"})
+    results = tidb_vs.query(text_to_embedding("foo"), k=4)
     assert len(results) == 3
     assert results[0].document == node_embeddings[1][0]
     assert results[0].distance == 0.0
     assert results[0].id == ids[0]
 
     # it should delete the first document just filtered by id
-    tidbcol.delete([ids[1], ids[0]])
-    results = tidbcol.query(text_to_embedding("foo"), k=4)
+    tidb_vs.delete([ids[1], ids[0]])
+    results = tidb_vs.query(text_to_embedding("foo"), k=4)
     assert len(results) == 1
     assert results[0].document == node_embeddings[1][2]
     assert results[0].distance == 0.004691842206844599
     assert results[0].id == node_embeddings[0][2]
 
     # insert the document back with different id
-    ids = tidbcol.insert(
+    ids = tidb_vs.insert(
         texts=node_embeddings[1],
         embeddings=node_embeddings[2],
         metadatas=node_embeddings[3],
     )
 
-    results = tidbcol.query(text_to_embedding("foo"), k=5)
+    results = tidb_vs.query(text_to_embedding("foo"), k=5)
     assert len(results) == 4
     assert results[0].document == node_embeddings[1][0]
     assert results[0].distance == 0.0
     assert results[0].id == ids[0]
 
     # test delete first document by filter and ids
-    tidbcol.delete([ids[1], ids[0]], filter={"page": 1})
-    results = tidbcol.query(text_to_embedding("foo"), k=5)
+    tidb_vs.delete([ids[1], ids[0]], filter={"page": 1})
+    results = tidb_vs.query(text_to_embedding("foo"), k=5)
     assert len(results) == 3
     assert results[0].document == node_embeddings[1][1]
     assert results[1].document == node_embeddings[1][2]
     assert results[1].distance == results[2].distance
 
     # insert the document back with different id
-    ids = tidbcol.insert(
+    ids = tidb_vs.insert(
         texts=node_embeddings[1],
         embeddings=node_embeddings[2],
         metadatas=node_embeddings[3],
     )
-    results = tidbcol.query(text_to_embedding("foo"), k=10)
+    results = tidb_vs.query(text_to_embedding("foo"), k=10)
     assert len(results) == 6
     assert results[0].document == node_embeddings[1][0]
     assert results[0].distance == 0.0
     assert results[0].id == ids[0]
 
     # test delete documents by filters
-    tidbcol.delete(filter={"category": "P1"})
-    results = tidbcol.query(text_to_embedding("foo"), k=10)
+    tidb_vs.delete(filter={"category": "P1"})
+    results = tidb_vs.query(text_to_embedding("foo"), k=10)
     assert len(results) == 3
     assert results[0].document == node_embeddings[1][2]
     assert results[1].document == node_embeddings[1][2]
@@ -263,8 +263,8 @@ def test_delete(
     assert results[1].distance == results[2].distance
 
     # test delete non_extsting by filter
-    tidbcol.delete(filter={"category": "P1"})
-    results = tidbcol.query(text_to_embedding("foo"), k=10)
+    tidb_vs.delete(filter={"category": "P1"})
+    results = tidb_vs.query(text_to_embedding("foo"), k=10)
     assert len(results) == 3
     assert results[0].document == node_embeddings[1][2]
     assert results[1].document == node_embeddings[1][2]
@@ -272,8 +272,8 @@ def test_delete(
     assert results[1].distance == results[2].distance
 
     # test delete non_extsting by ids
-    tidbcol.delete([ids[1], ids[0]])
-    results = tidbcol.query(text_to_embedding("foo"), k=10)
+    tidb_vs.delete([ids[1], ids[0]])
+    results = tidb_vs.query(text_to_embedding("foo"), k=10)
     assert len(results) == 3
     assert results[0].document == node_embeddings[1][2]
     assert results[1].document == node_embeddings[1][2]
@@ -281,15 +281,15 @@ def test_delete(
     assert results[1].distance == results[2].distance
 
     # test delete non_extsting by filter and ids
-    tidbcol.delete([ids[1], ids[0]], filter={"category": "P1"})
-    results = tidbcol.query(text_to_embedding("foo"), k=10)
+    tidb_vs.delete([ids[1], ids[0]], filter={"category": "P1"})
+    results = tidb_vs.query(text_to_embedding("foo"), k=10)
     assert len(results) == 3
     assert results[0].document == node_embeddings[1][2]
     assert results[1].document == node_embeddings[1][2]
     assert results[0].distance == results[1].distance
     assert results[1].distance == results[2].distance
 
-    tidbcol.drop_collection()
+    tidb_vs.drop_table()
 
 
 @pytest.mark.skipif(not tidb_available, reason="tidb is not available")
@@ -299,62 +299,62 @@ def test_query(
     """Test query function."""
 
     # prepare data
-    tidbcol = TiDBCollection(
-        collection_name=COLLECTION_NAME,
+    tidb_vs = VectorStore(
+        table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
-        pre_delete_collection=True,
+        pre_delete_table=True,
     )
 
-    ids = tidbcol.insert(
+    ids = tidb_vs.insert(
         ids=node_embeddings[0],
         texts=node_embeddings[1],
         embeddings=node_embeddings[2],
         metadatas=node_embeddings[3],
     )
 
-    results = tidbcol.query(text_to_embedding("foo"), k=3)
+    results = tidb_vs.query(text_to_embedding("foo"), k=3)
     assert len(results) == 3
     assert results[0].document == node_embeddings[1][0]
     assert results[0].distance == 0.0
     assert results[0].id == ids[0]
 
     # test query by matched filter
-    results = tidbcol.query(text_to_embedding("foo"), k=3, filter={"category": "P1"})
+    results = tidb_vs.query(text_to_embedding("foo"), k=3, filter={"category": "P1"})
     assert len(results) == 2
     assert results[0].document == node_embeddings[1][0]
     assert results[0].distance == 0.0
     assert results[0].id == ids[0]
 
-    # test query by matched filter
-    results = tidbcol.query(text_to_embedding("foo"), k=3, filter={"category": "P2"})
+    # test query by another matched filter
+    results = tidb_vs.query(text_to_embedding("foo"), k=3, filter={"category": "P2"})
     assert len(results) == 1
     assert results[0].document == node_embeddings[1][2]
     assert results[0].distance == 0.004691842206844599
     assert results[0].id == ids[2]
 
-    # test query by unmatched filter
-    results = tidbcol.query(text_to_embedding("foo"), k=3, filter={"category": "P3"})
+    # test query by unmatch filter
+    results = tidb_vs.query(text_to_embedding("foo"), k=3, filter={"category": "P3"})
     assert len(results) == 0
 
     # test basic filter query
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"), k=3, filter={"page": 2, "category": "P1"}
     )
     assert len(results) == 1
     assert results[0].distance == 0.0022719614199674387
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"), k=3, filter={"page": 1, "category": "P2"}
     )
     assert len(results) == 0
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"), k=3, filter={"page": {"$gt": 1}, "category": "P1"}
     )
     assert len(results) == 1
     assert results[0].distance == 0.0022719614199674387
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"),
         k=3,
         filter={"page": {"$gt": 1}, "category": {"$ne": "P2"}},
@@ -362,7 +362,7 @@ def test_query(
     assert len(results) == 1
     assert results[0].distance == 0.0022719614199674387
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"),
         k=3,
         filter={"page": {"$gt": 1}, "category": {"$ne": "P1"}},
@@ -370,13 +370,13 @@ def test_query(
     assert len(results) == 1
     assert results[0].distance == 0.004691842206844599
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"), k=3, filter={"page": {"$in": [2, 3]}}
     )
     assert len(results) == 2
     assert results[0].distance == 0.0022719614199674387
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"),
         k=3,
         filter={"page": {"$in": [2, 3]}, "category": {"$ne": "P1"}},
@@ -384,43 +384,43 @@ def test_query(
     assert len(results) == 1
     assert results[0].distance == 0.004691842206844599
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"), k=3, filter={"page": {"$nin": [2, 3]}}
     )
     assert len(results) == 1
     assert results[0].distance == 0.0
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"),
         k=3,
         filter={"page": {"$nin": [2, 3]}, "category": {"$ne": "P1"}},
     )
     assert len(results) == 0
 
-    results = tidbcol.query(text_to_embedding("foo"), k=3, filter={"page": {"$gte": 2}})
+    results = tidb_vs.query(text_to_embedding("foo"), k=3, filter={"page": {"$gte": 2}})
     assert len(results) == 2
     assert results[0].distance == 0.0022719614199674387
 
-    results = tidbcol.query(text_to_embedding("foo"), k=3, filter={"page": {"$lt": 4}})
+    results = tidb_vs.query(text_to_embedding("foo"), k=3, filter={"page": {"$lt": 4}})
     assert len(results) == 3
     assert results[0].distance == 0.0
 
-    results = tidbcol.query(text_to_embedding("baz"), k=3, filter={"page": {"$lte": 2}})
+    results = tidb_vs.query(text_to_embedding("baz"), k=3, filter={"page": {"$lte": 2}})
     assert len(results) == 2
     assert results[0].distance == 0.0005609046916807969
 
-    results = tidbcol.query(text_to_embedding("baz"), k=3, filter={"page": {"$eq": 2}})
+    results = tidb_vs.query(text_to_embedding("baz"), k=3, filter={"page": {"$eq": 2}})
     assert len(results) == 1
     assert results[0].distance == 0.0005609046916807969
 
     try:
-        _ = tidbcol.query(text_to_embedding("foo"), k=3, filter={"$and": [{"$gt": 1}]})
-        tidbcol.drop_collection()
+        _ = tidb_vs.query(text_to_embedding("foo"), k=3, filter={"$and": [{"$gt": 1}]})
+        tidb_vs.drop_table()
         assert False, "query with invalid filter raised an error"
     except ValueError:
         pass
 
-    tidbcol.drop_collection()
+    tidb_vs.drop_table()
 
 
 @pytest.mark.skipif(not tidb_available, reason="tidb is not available")
@@ -430,33 +430,33 @@ def test_complex_query(
     """Test complex query function."""
 
     # prepare data
-    tidbcol = TiDBCollection(
-        collection_name=COLLECTION_NAME,
+    tidb_vs = VectorStore(
+        table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
-        pre_delete_collection=True,
+        pre_delete_table=True,
     )
 
-    ids = tidbcol.insert(
+    ids = tidb_vs.insert(
         ids=node_embeddings[0],
         texts=node_embeddings[1],
         embeddings=node_embeddings[2],
         metadatas=node_embeddings[3],
     )
 
-    results = tidbcol.query(text_to_embedding("foo"), k=3)
+    results = tidb_vs.query(text_to_embedding("foo"), k=3)
     assert len(results) == 3
     assert results[0].document == node_embeddings[1][0]
     assert results[0].distance == 0.0
     assert results[0].id == ids[0]
 
     # test complex query
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"), k=3, filter={"$and": [{"page": 1}]}
     )
     assert len(results) == 1
     assert results[0].distance == 0.0
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"),
         k=3,
         filter={"$and": [{"page": {"$gt": 1}}, {"category": "P1"}]},
@@ -464,13 +464,13 @@ def test_complex_query(
     assert len(results) == 1
     assert results[0].distance == 0.0022719614199674387
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"), k=3, filter={"$or": [{"page": 1}]}
     )
     assert len(results) == 1
     assert results[0].distance == 0.0
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"),
         k=3,
         filter={"$or": [{"page": {"$gt": 1}}, {"category": "P1"}]},
@@ -478,7 +478,7 @@ def test_complex_query(
     assert len(results) == 3
     assert results[0].distance == 0.0
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"),
         k=3,
         filter={
@@ -489,14 +489,14 @@ def test_complex_query(
     assert len(results) == 1
     assert results[0].distance == 0.0022719614199674387
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"),
         k=3,
         filter={"$and": [{"page": {"$gt": 1}}, {"category": "P1"}], "page": 1},
     )
     assert len(results) == 0
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"),
         k=3,
         filter={"$or": [{"page": {"$gt": 1}}, {"category": "P1"}], "page": 1},
@@ -504,7 +504,7 @@ def test_complex_query(
     assert len(results) == 1
     assert results[0].distance == 0.0
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"),
         k=3,
         filter={
@@ -516,7 +516,7 @@ def test_complex_query(
     assert len(results) == 1
     assert results[0].distance == 0.0022719614199674387
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"),
         k=3,
         filter={
@@ -533,7 +533,7 @@ def test_complex_query(
     )
     assert len(results) == 0
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"),
         k=3,
         filter={
@@ -554,7 +554,7 @@ def test_complex_query(
     assert len(results) == 1
     assert results[0].distance == 0.0022719614199674387
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"),
         k=3,
         filter={
@@ -575,7 +575,7 @@ def test_complex_query(
     assert len(results) == 1
     assert results[0].distance == 0.004691842206844599
 
-    results = tidbcol.query(
+    results = tidb_vs.query(
         text_to_embedding("foo"),
         k=3,
         filter={
@@ -599,4 +599,4 @@ def test_complex_query(
     assert len(results) == 2
     assert results[0].distance == 0.0022719614199674387
 
-    tidbcol.drop_collection()
+    tidb_vs.drop_table()
