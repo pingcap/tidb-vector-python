@@ -63,7 +63,7 @@ def test_basic_search(
     tidb_vs = VectorStore(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
-        pre_delete_table=True,
+        drop_existing_table=True,
     )
 
     # Add document to the tidb vector
@@ -92,7 +92,7 @@ def test_get_existing_table(
     tidb_vs = VectorStore(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
-        pre_delete_table=True,
+        drop_existing_table=True,
     )
 
     tidb_vs.insert(
@@ -143,7 +143,7 @@ def test_insert(
     tidb_vs = VectorStore(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
-        pre_delete_table=True,
+        drop_existing_table=True,
     )
 
     # Add document to the tidb vector
@@ -185,7 +185,7 @@ def test_delete(
     tidb_vs = VectorStore(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
-        pre_delete_table=True,
+        drop_existing_table=True,
     )
 
     ids = tidb_vs.insert(
@@ -302,7 +302,7 @@ def test_query(
     tidb_vs = VectorStore(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
-        pre_delete_table=True,
+        drop_existing_table=True,
     )
 
     ids = tidb_vs.insert(
@@ -433,7 +433,7 @@ def test_complex_query(
     tidb_vs = VectorStore(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
-        pre_delete_table=True,
+        drop_existing_table=True,
     )
 
     ids = tidb_vs.insert(

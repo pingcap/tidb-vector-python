@@ -55,7 +55,7 @@ class VectorType(UserDefinedType):
         return process
 
     def result_processor(self, dialect, coltype):
-        """Convert the vectore data from the database into vector arrary."""
+        """Convert the vector data from the database into vector array."""
 
         def process(value):
             if value is None or isinstance(value, np.ndarray):

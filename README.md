@@ -1,1 +1,1 @@
-# tidb_vector_python
+# tidb-vector-python

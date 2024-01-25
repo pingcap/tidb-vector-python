@@ -77,7 +77,7 @@ class VectorStore:
         distance_strategy: DistanceStrategy = DistanceStrategy.COSINE,
         *,
         engine_args: Optional[Dict[str, Any]] = None,
-        pre_delete_table: bool = False,
+        drop_existing_table: bool = False,
         **kwargs: Any,
     ) -> None:
         """
@@ -91,7 +91,7 @@ class VectorStore:
                 defaults to "cosine", valid values: "l2", "cosine".
             engine_args (Optional[Dict]): Additional arguments for the database engine,
                 defaults to None.
-            pre_delete_table: Delete the table before creating a new one,
+            drop_existing_table: Delete the table before creating a new one,
                 defaults to False.
             **kwargs (Any): Additional keyword arguments.
 
@@ -101,7 +101,7 @@ class VectorStore:
         self.connection_string = connection_string
         self._distance_strategy = distance_strategy
         self._engine_args = engine_args or {}
-        self._pre_delete_table = pre_delete_table
+        self._drop_existing_table = drop_existing_table
         self._bind = self._create_engine()
         self._table_model = _create_vector_model(table_name)
         _ = self.distance_strategy  # check if distance strategy is valid
@@ -112,7 +112,7 @@ class VectorStore:
         If the `self._pre_delete_table` flag is set,
         the existing table will be dropped before creating a new one.
         """
-        if self._pre_delete_table:
+        if self._drop_existing_table:
             self.drop_table()
         with Session(self._bind) as session, session.begin():
             Base.metadata.create_all(session.get_bind())
