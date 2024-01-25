@@ -10,7 +10,7 @@ import pytest
 try:
     from tidb_vector.integrations import VectorStore  # noqa
 
-    TABLE_NAME = "tidb_vector_store_test"
+    TABLE_NAME = "tidb_vector_python_test"
     CONNECTION_STRING = os.getenv("TEST_TiDB_CONNECTION_URL", "")
 
     if CONNECTION_STRING == "":
@@ -80,6 +80,26 @@ def test_basic_search(
     assert results[0].document == node_embeddings[1][0]
     assert results[0].distance == 0.0
     assert results[0].id == node_embeddings[0][0]
+
+    # check vector table and content table were dropped
+    table_query = sqlalchemy.sql.text(
+        "SELECT 1 FROM information_schema.tables WHERE table_name = :table_name"
+    )
+    with tidb_vs._bind.connect() as connection:
+        assert (
+            connection.execute(
+                table_query,
+                {"table_name": TABLE_NAME},
+            ).fetchone()
+            is None
+        ), f"The table '{TABLE_NAME}' is still exist in the database."
+        assert (
+            connection.execute(
+                table_query,
+                {"table_name": tidb_vs._content_model.__tablename__},
+            ).fetchone()
+            is None
+        ), f"The table '{tidb_vs._content_model.__tablename__}' is still exist in the database."
 
 
 @pytest.mark.skipif(not tidb_available, reason="tidb is not available")

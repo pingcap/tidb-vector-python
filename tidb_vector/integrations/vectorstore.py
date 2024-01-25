@@ -6,8 +6,12 @@ import uuid
 from typing import Any, Dict, Generator, Iterable, List, Optional
 
 import sqlalchemy
-from sqlalchemy.orm import Session, declarative_base
-from tidb_vector.sqlalchemy import VectorType
+from sqlalchemy.orm import Session
+from tidb_vector.integrations.model import (
+    Base,
+    get_simpledoc_table_model,
+    get_vector_table_model,
+)
 
 logger = logging.getLogger()
 
@@ -19,45 +23,21 @@ class DistanceStrategy(str, enum.Enum):
     COSINE = "cosine"
 
 
-Base = declarative_base()  # type: Any
-
 _classes: Any = None
 
 
-def _create_vector_model(table_name: str):
+def _create_vector_model(vector_table_name: str, content_table_name: str):
     """Create a vector model class."""
 
     global _classes
     if _classes is not None:
         return _classes
 
-    class VectorTableModel(Base):
-        """
-        embedding: The column to store the vector data.
-        document: The column to store the document content.
-        meta: The column to store the metadata of the document.
-            It can be used to filter the document when performing search
-            e.g. {"title": "The title of the document", "custom_id": "123"}
-        """
+    _classes = (
+        get_simpledoc_table_model(content_table_name),
+        get_vector_table_model(vector_table_name),
+    )
 
-        __tablename__ = table_name
-        id = sqlalchemy.Column(
-            sqlalchemy.String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-        )
-        embedding = sqlalchemy.Column(VectorType())
-        document = sqlalchemy.Column(sqlalchemy.Text, nullable=True)
-        meta = sqlalchemy.Column(sqlalchemy.JSON, nullable=True)
-        create_time = sqlalchemy.Column(
-            sqlalchemy.DateTime, server_default=sqlalchemy.text("CURRENT_TIMESTAMP")
-        )
-        update_time = sqlalchemy.Column(
-            sqlalchemy.DateTime,
-            server_default=sqlalchemy.text(
-                "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-            ),
-        )
-
-    _classes = VectorTableModel
     return _classes
 
 
@@ -103,7 +83,9 @@ class VectorStore:
         self._engine_args = engine_args or {}
         self._drop_existing_table = drop_existing_table
         self._bind = self._create_engine()
-        self._table_model = _create_vector_model(table_name)
+        self._content_model, self._vector_model = _create_vector_model(
+            table_name, f"{table_name}_simpledocs"
+        )
         _ = self.distance_strategy  # check if distance strategy is valid
         self._create_table_if_not_exists()
 
@@ -143,9 +125,9 @@ class VectorStore:
         Returns the distance function based on the current distance strategy value.
         """
         if self._distance_strategy == DistanceStrategy.EUCLIDEAN:
-            return self._table_model.embedding.l2_distance
+            return self._vector_model.embedding.l2_distance
         elif self._distance_strategy == DistanceStrategy.COSINE:
-            return self._table_model.embedding.cosine_distance
+            return self._vector_model.embedding.cosine_distance
         else:
             raise ValueError(
                 f"Got unexpected value for distance: {self._distance_strategy}. "
@@ -239,10 +221,14 @@ class VectorStore:
 
         with Session(self._bind) as session:
             for text, metadata, embedding, id in zip(texts, metadatas, embeddings, ids):
-                embeded_doc = self._table_model(
+                content_id = self._content_model.insert(
+                    session, text, metadata, commit_transaction=False
+                )
+                embeded_doc = self._vector_model(
                     id=id,
+                    content_id=content_id,
+                    ref_content_table=self._content_model.__tablename__,
                     embedding=embedding,
-                    document=text,
                     meta=metadata,
                 )
                 session.add(embeded_doc)
@@ -266,9 +252,23 @@ class VectorStore:
         filter_by = self._build_filter_clause(filter)
         with Session(self._bind) as session:
             if ids is not None:
-                filter_by = sqlalchemy.and_(self._table_model.id.in_(ids), filter_by)
-            stmt = sqlalchemy.delete(self._table_model).filter(filter_by)
-            session.execute(stmt)
+                filter_by = sqlalchemy.and_(self._vector_model.id.in_(ids), filter_by)
+
+            content_ids_query = (
+                session.query(self._vector_model.content_id)
+                .filter(filter_by)
+                .distinct()
+            )
+            content_ids = [row.content_id for row in content_ids_query.all()]
+
+            if not content_ids or len(content_ids) == 0:
+                return
+
+            session.query(self._vector_model).filter(
+                self._vector_model.content_id.in_(content_ids)
+            ).delete(synchronize_session=False)
+            self._content_model.delete(session, content_ids, commit_transaction=False)
+
             session.commit()
 
     def query(
@@ -291,17 +291,36 @@ class VectorStore:
         Returns:
             A list of tuples containing relevant documents and their similarity scores.
         """
-        relevant_docs = self._vector_search(query_vector, k, filter)
 
-        return [
-            QueryResult(
-                document=doc.document,
-                metadata=doc.meta,
-                id=doc.id,
-                distance=doc.distance,
-            )
-            for doc in relevant_docs
-        ]
+        # Step 1: Get content IDs and additional information from vector search
+        vector_search_results = self._vector_search(query_vector, k, filter)
+
+        # Step 2: Fetch content details based on content IDs
+        content_ids = [result.content_id for result in vector_search_results]
+        if not content_ids and len(content_ids) == 0:
+            return []
+
+        contents = {}
+        with Session(self._bind) as session:
+            content_results = self._content_model.get_by_ids(session, content_ids)
+            # Create a dictionary to map content IDs to their content for easy lookup
+            contents = {content.content_id: content for content in content_results}
+
+        # Step 3: Combine vector search results with content details
+        query_results = []
+        for result in vector_search_results:
+            content = contents.get(result.content_id)
+            if content:
+                query_results.append(
+                    QueryResult(
+                        document=content.content,
+                        metadata=result.meta,
+                        id=result.id,
+                        distance=result.distance,
+                    )
+                )
+
+        return query_results
 
     def _vector_search(
         self,
@@ -315,9 +334,9 @@ class VectorStore:
         with Session(self._bind) as session:
             results: List[Any] = (
                 session.query(
-                    self._table_model.id,
-                    self._table_model.meta,
-                    self._table_model.document,
+                    self._vector_model.id,
+                    self._vector_model.meta,
+                    self._vector_model.content_id,
                     self.distance_strategy(query_embedding).label("distance"),
                 )
                 .filter(filter_by)
@@ -380,7 +399,9 @@ class VectorStore:
                         filter_clauses.append(filter_by_metadata)
                 else:
                     filter_by_metadata = (
-                        sqlalchemy.func.json_extract(self._table_model.meta, f"$.{key}")
+                        sqlalchemy.func.json_extract(
+                            self._vector_model.meta, f"$.{key}"
+                        )
                         == value
                     )
                     filter_clauses.append(filter_by_metadata)
@@ -415,7 +436,7 @@ class VectorStore:
             "$ne",
         )
 
-        json_key = sqlalchemy.func.json_extract(self._table_model.meta, f"$.{key}")
+        json_key = sqlalchemy.func.json_extract(self._vector_model.meta, f"$.{key}")
         value_case_insensitive = {k.lower(): v for k, v in value.items()}
 
         if IN in map(str.lower, value):
