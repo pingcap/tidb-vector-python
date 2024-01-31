@@ -8,9 +8,9 @@ import sqlalchemy
 import pytest
 
 try:
-    from tidb_vector.integrations import VectorStore  # noqa
+    from tidb_vector.integrations import TiDBVectorClient  # noqa
 
-    TABLE_NAME = "tidb_vector_store_test"
+    TABLE_NAME = "tidb_vector_test"
     CONNECTION_STRING = os.getenv("TEST_TiDB_CONNECTION_URL", "")
 
     if CONNECTION_STRING == "":
@@ -58,9 +58,9 @@ def node_embeddings() -> Tuple[list[str], list[str], list[list[float]], list[dic
 def test_basic_search(
     node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
 ) -> None:
-    """Test end to end tidb vectorestore construction and search."""
+    """Test end to end tidb vector construction and search."""
 
-    tidb_vs = VectorStore(
+    tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
         drop_existing_table=True,
@@ -86,10 +86,10 @@ def test_basic_search(
 def test_get_existing_table(
     node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
 ) -> None:
-    """Test get vector store function."""
+    """Test get existing vector table."""
 
     # prepare a table
-    tidb_vs = VectorStore(
+    tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
         drop_existing_table=True,
@@ -102,8 +102,8 @@ def test_get_existing_table(
         metadatas=node_embeddings[3],
     )
 
-    # try to get the existing vector store
-    tidb_vs2 = VectorStore.get_vectorstore(
+    # try to get the existing vector table
+    tidb_vs2 = TiDBVectorClient(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
     )
@@ -123,15 +123,14 @@ def test_get_existing_table(
     except Exception:
         pass
 
-    # try to get non-existing table
-    try:
-        _ = VectorStore.get_vectorstore(
+    # try to check table existence
+    assert (
+        TiDBVectorClient.check_table_existence(
             table_name=TABLE_NAME,
             connection_string=CONNECTION_STRING,
         )
-        assert False, "non-existing table testing raised an error"
-    except sqlalchemy.exc.NoSuchTableError:
-        pass
+        is False
+    ), "non-existing table testing raised an error"
 
 
 @pytest.mark.skipif(not tidb_available, reason="tidb is not available")
@@ -140,7 +139,7 @@ def test_insert(
 ) -> None:
     """Test insert function."""
 
-    tidb_vs = VectorStore(
+    tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
         drop_existing_table=True,
@@ -182,7 +181,7 @@ def test_delete(
     """Test delete function."""
 
     # prepare data
-    tidb_vs = VectorStore(
+    tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
         drop_existing_table=True,
@@ -299,7 +298,7 @@ def test_query(
     """Test query function."""
 
     # prepare data
-    tidb_vs = VectorStore(
+    tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
         drop_existing_table=True,
@@ -430,7 +429,7 @@ def test_complex_query(
     """Test complex query function."""
 
     # prepare data
-    tidb_vs = VectorStore(
+    tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
         drop_existing_table=True,
@@ -599,4 +598,83 @@ def test_complex_query(
     assert len(results) == 2
     assert results[0].distance == 0.0022719614199674387
 
+    tidb_vs.drop_table()
+
+
+def test_execute_select_query_success(
+    node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
+) -> None:
+    """Test execute method with a successful SELECT query."""
+    tidb_vs = TiDBVectorClient(
+        table_name=TABLE_NAME,
+        connection_string=CONNECTION_STRING,
+        drop_existing_table=True,
+    )
+
+    # Insert some data into the table
+    tidb_vs.insert(
+        texts=node_embeddings[1],
+        embeddings=node_embeddings[2],
+        metadatas=node_embeddings[3],
+    )
+
+    # Execute a SELECT query
+    result = tidb_vs.execute(
+        "SELECT * FROM tidb_vector_test WHERE JSON_EXTRACT(meta, '$.category') = :category",
+        {"category": "P1"},
+    )
+
+    # Check the result
+    assert result["success"] is True
+    assert len(result["result"]) == 2
+    assert result["error"] is None
+
+    # Clean up
+    tidb_vs.drop_table()
+
+
+def test_execute_non_select_query_failure(
+    node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
+) -> None:
+    """Test execute method with a non-SELECT query."""
+    tidb_vs = TiDBVectorClient(
+        table_name=TABLE_NAME,
+        connection_string=CONNECTION_STRING,
+        drop_existing_table=True,
+    )
+
+    # Execute a non-SELECT query
+    result = tidb_vs.execute(
+        "INSERT INTO tidb_vector_test (document) VALUES (:document)",
+        {"document": "test"},
+    )
+
+    # Check the result
+    assert result["success"] is False
+    assert result["result"] is None
+    assert result["error"] == "Only SELECT queries are allowed."
+
+    # Clean up
+    tidb_vs.drop_table()
+
+
+def test_execute_select_query_failure(
+    node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
+) -> None:
+    """Test execute method with a SELECT query that fails."""
+    tidb_vs = TiDBVectorClient(
+        table_name=TABLE_NAME,
+        connection_string=CONNECTION_STRING,
+        drop_existing_table=True,
+    )
+
+    # Execute a SELECT query that fails
+    result = tidb_vs.execute("SELECT * FROM non_existing_table")
+
+    # Check the result
+    assert result["success"] is False
+    assert result["result"] is None
+    assert result["error"] is not None
+
+    # Clean up
     tidb_vs.drop_table()

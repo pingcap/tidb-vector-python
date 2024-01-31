@@ -1,3 +1,3 @@
-from tidb_vector.integrations.vectorstore import VectorStore
+from tidb_vector.integrations.vector_client import TiDBVectorClient
 
-__all__ = ["VectorStore"]
+__all__ = ["TiDBVectorClient"]
