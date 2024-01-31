@@ -430,15 +430,6 @@ class TiDBVectorClient:
             logger.error(f"SQL execution error: {str(e)}")
             return {"success": False, "result": None, "error": str(e)}
 
-    def get_raw_connection(self):
-        """
-        Get the raw database connection.
-
-        Returns:
-            Connection: The raw database connection object.
-        """
-        return self._bind.raw_connection()
-
     @staticmethod
     def check_table_existence(
         connection_string: str,
