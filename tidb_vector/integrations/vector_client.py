@@ -386,45 +386,47 @@ class TiDBVectorClient:
 
     def execute(self, sql: str, params: Optional[dict] = None) -> dict:
         """
-        Execute a SELECT SQL command and return the result.
+        Execute an arbitrary SQL command and return execution status and result.
 
-        This method is specifically designed for handling SELECT queries. It returns a structured
-        dictionary indicating the execution success status, fetched results, and any error message
-        if the execution failed.
+        This method can handle both DML (Data Manipulation Language) commands such as INSERT, UPDATE, DELETE,
+        and DQL (Data Query Language) commands like SELECT. It returns a structured dictionary indicating
+        the execution success status, result (for SELECT queries or affected rows count for DML), and any
+        error message if the execution failed.
 
         Args:
-            sql (str): The SELECT SQL command to execute.
+            sql (str): The SQL command to execute.
             params (Optional[dict]): Parameters to bind to the SQL command, if any.
 
         Returns:
             dict: A dictionary containing 'success': boolean indicating if the execution was successful,
-                'result': fetched results for the SELECT query,
+                'result': fetched results for SELECT or affected rows count for other statements,
                 and 'error': error message if execution failed.
 
         Examples:
+            - Creating a table:
+            execute("CREATE TABLE users (id INT, username VARCHAR(50), email VARCHAR(50))")
+            This would return: {'success': True, 'result': 0, 'error': None}
+
             - Executing a SELECT query:
             execute("SELECT * FROM users WHERE username = :username", {"username": "john_doe"})
             This would return: {'success': True, 'result': [(user data)], 'error': None}
 
-            - Attempting to execute a non-SELECT query:
+            - Inserting data into a table:
             execute("INSERT INTO users (username, email) VALUES (:username, :email)", {"username": "new_user", "email": "new_user@example.com"})
-            This would return: {'success': False, 'result': None, 'error': 'Only SELECT queries are allowed.'}
+            This would return: {'success': True, 'result': 1, 'error': None} if one row was affected.
 
-        Note:
-            This method only supports SELECT queries. Attempting to execute any other type of SQL command will result in an error.
+            - Handling an error (e.g., table does not exist):
+            execute("SELECT * FROM non_existing_table")
+            This might return: {'success': False, 'result': None, 'error': '(Error message)'}
         """
-        # Check if the SQL is a SELECT statement
-        if not sql.strip().lower().startswith("select"):
-            return {
-                "success": False,
-                "result": None,
-                "error": "Only SELECT queries are allowed.",
-            }
-
         try:
-            with Session(self._bind) as session:
+            with Session(self._bind) as session, session.begin():
                 result = session.execute(sqlalchemy.text(sql), params)
-                return {"success": True, "result": result.fetchall(), "error": None}
+                session.commit()  # Ensure changes are committed for non-SELECT statements.
+                if sql.strip().lower().startswith("select"):
+                    return {"success": True, "result": result.fetchall(), "error": None}
+                else:
+                    return {"success": True, "result": result.rowcount, "error": None}
         except Exception as e:
             # Log the error or handle it as needed
             logger.error(f"SQL execution error: {str(e)}")

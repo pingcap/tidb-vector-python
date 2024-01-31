@@ -601,80 +601,68 @@ def test_complex_query(
     tidb_vs.drop_table()
 
 
-def test_execute_select_query_success(
+def test_execute(
     node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
 ) -> None:
-    """Test execute method with a successful SELECT query."""
+    """Test execute method with SELECT query."""
     tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
         drop_existing_table=True,
     )
 
-    # Insert some data into the table
+    # Insert data into the table
     tidb_vs.insert(
         texts=node_embeddings[1],
+        ids=node_embeddings[0],
         embeddings=node_embeddings[2],
-        metadatas=node_embeddings[3],
     )
+
+    # Create a testing table
+    result = tidb_vs.execute(
+        "CREATE TABLE IF NOT EXISTS test_tidb_vector_execution_function (id VARCHAR(36), document VARCHAR(100), category VARCHAR(100))"
+    )
+    assert result["success"] is True
+    assert result["error"] is None
+    assert result["result"] == 0
+
+    # Insert data into the testing table
+    result = tidb_vs.execute(
+        "INSERT INTO test_tidb_vector_execution_function (id, document, category) VALUES (:id, :document, :category)",
+        {"id": "123", "document": "test", "category": "P1"},
+    )
+    assert result["success"] is True
+    assert result["error"] is None
+    assert result["result"] == 1
 
     # Execute a SELECT query
     result = tidb_vs.execute(
-        "SELECT * FROM tidb_vector_test WHERE JSON_EXTRACT(meta, '$.category') = :category",
+        "SELECT * FROM test_tidb_vector_execution_function WHERE category = :category",
         {"category": "P1"},
     )
 
     # Check the result
     assert result["success"] is True
-    assert len(result["result"]) == 2
+    assert len(result["result"]) == 1
     assert result["error"] is None
 
-    # Clean up
-    tidb_vs.drop_table()
+    # Drop the testing table
+    result = tidb_vs.execute("DROP TABLE test_tidb_vector_execution_function")
+    assert result["success"] is True
+    assert result["error"] is None
+    assert result["result"] == 0
 
+    assert (
+        tidb_vs.check_table_existence(
+            table_name="test_tidb_vector_execution_function",
+            connection_string=CONNECTION_STRING,
+        )
+        is False
+    ), "Table test_tidb_vector_execution_function should not exist"
 
-def test_execute_non_select_query_failure(
-    node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
-) -> None:
-    """Test execute method with a non-SELECT query."""
-    tidb_vs = TiDBVectorClient(
-        table_name=TABLE_NAME,
-        connection_string=CONNECTION_STRING,
-        drop_existing_table=True,
-    )
-
-    # Execute a non-SELECT query
-    result = tidb_vs.execute(
-        "INSERT INTO tidb_vector_test (document) VALUES (:document)",
-        {"document": "test"},
-    )
-
-    # Check the result
+    # test non-existing table
+    result = tidb_vs.execute("SELECT * FROM test_tidb_vector_execution_function")
     assert result["success"] is False
-    assert result["result"] is None
-    assert result["error"] == "Only SELECT queries are allowed."
-
-    # Clean up
-    tidb_vs.drop_table()
-
-
-def test_execute_select_query_failure(
-    node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
-) -> None:
-    """Test execute method with a SELECT query that fails."""
-    tidb_vs = TiDBVectorClient(
-        table_name=TABLE_NAME,
-        connection_string=CONNECTION_STRING,
-        drop_existing_table=True,
-    )
-
-    # Execute a SELECT query that fails
-    result = tidb_vs.execute("SELECT * FROM non_existing_table")
-
-    # Check the result
-    assert result["success"] is False
-    assert result["result"] is None
     assert result["error"] is not None
 
-    # Clean up
     tidb_vs.drop_table()
