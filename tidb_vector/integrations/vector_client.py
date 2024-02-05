@@ -69,7 +69,7 @@ class QueryResult:
     distance: float
 
 
-class VectorStore:
+class TiDBVectorClient:
     def __init__(
         self,
         connection_string: str,
@@ -81,7 +81,7 @@ class VectorStore:
         **kwargs: Any,
     ) -> None:
         """
-        Initializes a vector store in a specified table within a TiDB database.
+        Initializes a vector client in a specified table within a TiDB database.
 
         Args:
             connection_string (str): The connection string for the TiDB database,
@@ -151,65 +151,6 @@ class VectorStore:
                 f"Got unexpected value for distance: {self._distance_strategy}. "
                 f"Should be one of {', '.join([ds.value for ds in DistanceStrategy])}."
             )
-
-    @classmethod
-    def get_vectorstore(
-        cls,
-        connection_string: str,
-        table_name: str,
-        distance_strategy: DistanceStrategy = DistanceStrategy.COSINE,
-        *,
-        engine_args: Optional[Dict[str, Any]] = None,
-        **kwargs: Any,
-    ) -> "VectorStore":
-        """
-        Create a VectorStore instance from an existing table in the TiDB database.
-
-        Args:
-            connection_string (str): The connection string for the TiDB database,
-                format: "mysql+pymysql://root@127.0.0.1:4000/test".
-            table_name (str, optional): The name of the table used to store vector data.
-            distance_strategy: The distance strategy used for similarity search,
-                allowed strategies: "l2", "cosine".
-            engine_args: Additional arguments for the underlying database engine,
-                defaults to None.
-            **kwargs (Any): Additional keyword arguments.
-        Returns:
-            VectorStore: The VectorStore instance.
-
-        Raises:
-            NoSuchTableError: If the specified table does not exist in the TiDB.
-        """
-
-        engine = sqlalchemy.create_engine(connection_string, **(engine_args or {}))
-
-        try:
-            # check if the table exists
-            table_query = sqlalchemy.sql.text(
-                "SELECT 1 FROM information_schema.tables WHERE table_name = :table_name"
-            )
-            with engine.connect() as connection:
-                if (
-                    connection.execute(
-                        table_query,
-                        {"table_name": table_name},
-                    ).fetchone()
-                    is None
-                ):
-                    raise sqlalchemy.exc.NoSuchTableError(
-                        f"The table '{table_name}' does not exist in the database."
-                    )
-
-            return cls(
-                connection_string=connection_string,
-                table_name=table_name,
-                distance_strategy=distance_strategy,
-                engine_args=engine_args,
-                **kwargs,
-            )
-        finally:
-            # Close the engine after querying the tale
-            engine.dispose()
 
     def insert(
         self,
@@ -442,3 +383,75 @@ class VectorStore:
             filter_by_metadata = None
 
         return filter_by_metadata
+
+    def execute(self, sql: str, params: Optional[dict] = None) -> dict:
+        """
+        Execute an arbitrary SQL command and return execution status and result.
+
+        This method can handle both DML (Data Manipulation Language) commands such as INSERT, UPDATE, DELETE,
+        and DQL (Data Query Language) commands like SELECT. It returns a structured dictionary indicating
+        the execution success status, result (for SELECT queries or affected rows count for DML), and any
+        error message if the execution failed.
+
+        Args:
+            sql (str): The SQL command to execute.
+            params (Optional[dict]): Parameters to bind to the SQL command, if any.
+
+        Returns:
+            dict: A dictionary containing 'success': boolean indicating if the execution was successful,
+                'result': fetched results for SELECT or affected rows count for other statements,
+                and 'error': error message if execution failed.
+
+        Examples:
+            - Creating a table:
+            execute("CREATE TABLE users (id INT, username VARCHAR(50), email VARCHAR(50))")
+            This would return: {'success': True, 'result': 0, 'error': None}
+
+            - Executing a SELECT query:
+            execute("SELECT * FROM users WHERE username = :username", {"username": "john_doe"})
+            This would return: {'success': True, 'result': [(user data)], 'error': None}
+
+            - Inserting data into a table:
+            execute("INSERT INTO users (username, email) VALUES (:username, :email)", {"username": "new_user", "email": "new_user@example.com"})
+            This would return: {'success': True, 'result': 1, 'error': None} if one row was affected.
+
+            - Handling an error (e.g., table does not exist):
+            execute("SELECT * FROM non_existing_table")
+            This might return: {'success': False, 'result': None, 'error': '(Error message)'}
+        """
+        try:
+            with Session(self._bind) as session, session.begin():
+                result = session.execute(sqlalchemy.text(sql), params)
+                session.commit()  # Ensure changes are committed for non-SELECT statements.
+                if sql.strip().lower().startswith("select"):
+                    return {"success": True, "result": result.fetchall(), "error": None}
+                else:
+                    return {"success": True, "result": result.rowcount, "error": None}
+        except Exception as e:
+            # Log the error or handle it as needed
+            logger.error(f"SQL execution error: {str(e)}")
+            return {"success": False, "result": None, "error": str(e)}
+
+    @staticmethod
+    def check_table_existence(
+        connection_string: str,
+        table_name: str,
+        engine_args: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """
+        Check if the vector table exists in the database.
+
+        Args:
+            connection_string (str): The connection string for the database.
+            table_name (str): The name of the table to check.
+            engine_args (Optional[Dict[str, Any]]): Additional arguments for the engine.
+
+        Returns:
+            bool: True if the table exists, False otherwise.
+        """
+        engine = sqlalchemy.create_engine(connection_string, **(engine_args or {}))
+        try:
+            inspector = sqlalchemy.inspect(engine)
+            return table_name in inspector.get_table_names()
+        finally:
+            engine.dispose()
