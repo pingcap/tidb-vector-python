@@ -11,8 +11,15 @@ class VectorType(UserDefinedType):
     cache_ok = True
 
     def __init__(self, dim=None):
+        if dim is not None and not isinstance(dim, int):
+            raise ValueError("expected dimension to be an integer or None")
+
+        # tidb vector dim length is allowed to be in [1,16000]
+        if dim is not None and (dim < 1 or dim > 16000):
+            raise ValueError("expected dimension to be in [1,16000]")
+
         super(UserDefinedType, self).__init__()
-        self.dim = None
+        self.dim = dim
 
     def get_col_spec(self, **kw):
         """
@@ -27,12 +34,12 @@ class VectorType(UserDefinedType):
 
         if self.dim is None:
             return "VECTOR<FLOAT>"
-        return "VECTOR(%d)" % self.dim
+        return "VECTOR<FLOAT>(%d)" % self.dim
 
     def bind_processor(self, dialect):
         """Convert the vector float array to a string representation suitable for binding to a database column."""
 
-        def process(value, dim=None):
+        def process(value):
             if value is None:
                 return value
 
@@ -47,8 +54,10 @@ class VectorType(UserDefinedType):
 
                 value = value.tolist()
 
-            if dim is not None and len(value) != dim:
-                raise ValueError("expected %d dimensions, not %d" % (dim, len(value)))
+            if self.dim is not None and len(value) != self.dim:
+                raise ValueError(
+                    "expected %d dimensions, not %d" % (self.dim, len(value))
+                )
 
             return "[" + ",".join([str(float(v)) for v in value]) + "]"
 
@@ -68,8 +77,17 @@ class VectorType(UserDefinedType):
     class comparator_factory(UserDefinedType.Comparator):
         """Returns a comparator factory that provides the distance functions."""
 
+        def l1_distance(self, other):
+            return self.op("VEC_L1_DISTANCE", return_type=Float)(other)
+
         def l2_distance(self, other):
-            return self.op("<-->", return_type=Float)(other)
+            return self.op("VEC_L2_DISTANCE", return_type=Float)(other)
 
         def cosine_distance(self, other):
-            return self.op("<==>", return_type=Float)(other)
+            return self.op("VEC_COSINE_DISTANCE", return_type=Float)(other)
+
+        def negative_inner_product(self, other):
+            return self.op("VEC_NEGATIVE_INNER_PRODUCT", return_type=Float)(other)
+
+        def l2_norm(self, other):
+            return self.op("VEC_L2_NORM", return_type=Float)(other)
