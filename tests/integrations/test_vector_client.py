@@ -8,7 +8,11 @@ import sqlalchemy
 import pytest
 
 try:
-    from tidb_vector.integrations import TiDBVectorClient  # noqa
+    from tidb_vector.integrations import TiDBVectorClient, reset_vector_model  # noqa
+    from tidb_vector.integrations.utils import (
+        EmbeddingColumnMismatchError,
+        check_table_existence,
+    )  # noqa
 
     TABLE_NAME = "tidb_vector_test"
     CONNECTION_STRING = os.getenv("TEST_TiDB_CONNECTION_URL", "")
@@ -63,6 +67,7 @@ def test_basic_search(
     tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
+        vector_dimension=ADA_TOKEN_COUNT,
         drop_existing_table=True,
     )
 
@@ -83,11 +88,95 @@ def test_basic_search(
 
 
 @pytest.mark.skipif(not tidb_available, reason="tidb is not available")
+def test_mismatch_vector_dimension(
+    node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
+) -> None:
+    """Test mismatch vector dimension."""
+
+    reset_vector_model()
+    try:
+        tidb_vs = TiDBVectorClient(
+            table_name=TABLE_NAME,
+            connection_string=CONNECTION_STRING,
+            vector_dimension=ADA_TOKEN_COUNT - 1,
+            drop_existing_table=True,
+        )
+        tidb_vs.insert(
+            texts=node_embeddings[1],
+            ids=node_embeddings[0],
+            embeddings=node_embeddings[2],
+        )
+        assert False, "[insert] mismatch vector dimension raised an error"
+    except sqlalchemy.exc.StatementError:
+        pass
+
+    try:
+        _ = TiDBVectorClient(
+            table_name=TABLE_NAME,
+            connection_string=CONNECTION_STRING,
+            vector_dimension=ADA_TOKEN_COUNT,
+        )
+        assert (
+            False
+        ), "[vector client initialization] mismatch vector dimension raised an error"
+    except EmbeddingColumnMismatchError:
+        pass
+
+    tidb_vs.drop_table()
+
+
+@pytest.mark.skipif(not tidb_available, reason="tidb is not available")
+def test_various_distance_strategies(
+    node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
+) -> None:
+    """Test various distance strategies."""
+    reset_vector_model()
+    distance_strategies = ["l2", "cosine", "inner_product"]
+    for distance_strategy in distance_strategies:
+        tidb_vs = TiDBVectorClient(
+            table_name=TABLE_NAME,
+            connection_string=CONNECTION_STRING,
+            distance_strategy=distance_strategy,  # type: ignore
+            drop_existing_table=True,
+        )
+
+        # Add document to the tidb vector
+        tidb_vs.insert(
+            texts=node_embeddings[1],
+            ids=node_embeddings[0],
+            embeddings=node_embeddings[2],
+        )
+
+        # similarity search
+        results = tidb_vs.query(text_to_embedding("foo"), k=3)
+        tidb_vs.drop_table()
+
+        # Check results
+        assert len(results) == 3
+        assert results[0].document == node_embeddings[1][0]
+        assert results[0].id == node_embeddings[0][0]
+
+    try:
+        _ = TiDBVectorClient(
+            table_name=TABLE_NAME,
+            connection_string=CONNECTION_STRING,
+            distance_strategy="error",  # type: ignore
+            drop_existing_table=True,
+        )
+        assert False, "invalid distance strategy raised an error"
+    except ValueError:
+        pass
+
+    tidb_vs.drop_table()
+
+
+@pytest.mark.skipif(not tidb_available, reason="tidb is not available")
 def test_get_existing_table(
     node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
 ) -> None:
     """Test get existing vector table."""
 
+    reset_vector_model()
     # prepare a table
     tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
@@ -125,7 +214,7 @@ def test_get_existing_table(
 
     # try to check table existence
     assert (
-        TiDBVectorClient.check_table_existence(
+        check_table_existence(
             table_name=TABLE_NAME,
             connection_string=CONNECTION_STRING,
         )
@@ -139,6 +228,7 @@ def test_insert(
 ) -> None:
     """Test insert function."""
 
+    reset_vector_model()
     tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
@@ -180,6 +270,7 @@ def test_delete(
 ) -> None:
     """Test delete function."""
 
+    reset_vector_model()
     # prepare data
     tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
@@ -297,6 +388,7 @@ def test_query(
 ) -> None:
     """Test query function."""
 
+    reset_vector_model()
     # prepare data
     tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
@@ -428,6 +520,7 @@ def test_complex_query(
 ) -> None:
     """Test complex query function."""
 
+    reset_vector_model()
     # prepare data
     tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
@@ -601,10 +694,13 @@ def test_complex_query(
     tidb_vs.drop_table()
 
 
+@pytest.mark.skipif(not tidb_available, reason="tidb is not available")
 def test_execute(
     node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
 ) -> None:
     """Test execute method with SELECT query."""
+
+    reset_vector_model()
     tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
@@ -653,7 +749,7 @@ def test_execute(
     assert result["result"] == 0
 
     assert (
-        tidb_vs.check_table_existence(
+        check_table_existence(
             table_name="test_tidb_vector_execution_function",
             connection_string=CONNECTION_STRING,
         )
