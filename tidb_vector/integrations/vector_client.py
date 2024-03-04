@@ -120,6 +120,9 @@ class TiDBVectorClient:
         """
         Check if the table is compatible with the current configuration.
         """
+        if self._drop_existing_table:
+            return
+
         actual_dim = get_embedding_column_definition(
             self.connection_string, self._table_name, "embedding"
         )
