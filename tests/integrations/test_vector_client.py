@@ -8,7 +8,7 @@ import sqlalchemy
 import pytest
 
 try:
-    from tidb_vector.integrations import TiDBVectorClient  # noqa
+    from tidb_vector.integrations import TiDBVectorClient, reset_vector_model  # noqa
     from tidb_vector.integrations.utils import (
         EmbeddingColumnMismatchError,
         check_table_existence,
@@ -92,6 +92,8 @@ def test_mismatch_vector_dimension(
     node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
 ) -> None:
     """Test mismatch vector dimension."""
+
+    reset_vector_model()
     try:
         tidb_vs = TiDBVectorClient(
             table_name=TABLE_NAME,
@@ -99,6 +101,7 @@ def test_mismatch_vector_dimension(
             vector_dimension=ADA_TOKEN_COUNT - 1,
             drop_existing_table=True,
         )
+        exit()
         tidb_vs.insert(
             texts=node_embeddings[1],
             ids=node_embeddings[0],
@@ -109,11 +112,10 @@ def test_mismatch_vector_dimension(
         pass
 
     try:
-        tidb_vs = TiDBVectorClient(
+        _ = TiDBVectorClient(
             table_name=TABLE_NAME,
             connection_string=CONNECTION_STRING,
             vector_dimension=ADA_TOKEN_COUNT,
-            # drop_existing_table=True,
         )
         assert (
             False

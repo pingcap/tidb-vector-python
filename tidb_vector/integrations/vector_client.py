@@ -29,6 +29,12 @@ Base = declarative_base()  # type: Any
 _classes: Any = None
 
 
+def reset_vector_model():
+    """Reset the global classes."""
+    global _classes
+    _classes = None
+
+
 def _create_vector_model(table_name: str, dim: Optional[int] = None):
     """Create a vector model class."""
 
