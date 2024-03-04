@@ -1,6 +1,35 @@
 import numpy as np
 
-from sqlalchemy.types import Float, UserDefinedType
+from sqlalchemy.types import UserDefinedType
+from sqlalchemy.sql import func
+
+
+def encode_vector(value, dim=None):
+    if value is None:
+        return value
+
+    if isinstance(value, np.ndarray):
+        if value.ndim != 1:
+            raise ValueError("expected ndim to be 1")
+
+        if not np.issubdtype(value.dtype, np.integer) and not np.issubdtype(
+            value.dtype, np.floating
+        ):
+            raise ValueError("dtype must be numeric")
+
+        value = value.tolist()
+
+    if dim is not None and len(value) != dim:
+        raise ValueError("expected %d dimensions, not %d" % (dim, len(value)))
+
+    return "[" + ",".join([str(float(v)) for v in value]) + "]"
+
+
+def decode_vector(value):
+    if value is None or isinstance(value, np.ndarray):
+        return value
+
+    return np.array(value[1:-1].split(","), dtype=np.float32)
 
 
 class VectorType(UserDefinedType):
@@ -40,26 +69,7 @@ class VectorType(UserDefinedType):
         """Convert the vector float array to a string representation suitable for binding to a database column."""
 
         def process(value):
-            if value is None:
-                return value
-
-            if isinstance(value, np.ndarray):
-                if value.ndim != 1:
-                    raise ValueError("expected ndim to be 1")
-
-                if not np.issubdtype(value.dtype, np.integer) and not np.issubdtype(
-                    value.dtype, np.floating
-                ):
-                    raise ValueError("dtype must be numeric")
-
-                value = value.tolist()
-
-            if self.dim is not None and len(value) != self.dim:
-                raise ValueError(
-                    "expected %d dimensions, not %d" % (self.dim, len(value))
-                )
-
-            return "[" + ",".join([str(float(v)) for v in value]) + "]"
+            return encode_vector(value, self.dim)
 
         return process
 
@@ -67,10 +77,7 @@ class VectorType(UserDefinedType):
         """Convert the vector data from the database into vector array."""
 
         def process(value):
-            if value is None or isinstance(value, np.ndarray):
-                return value
-
-            return np.array(value[1:-1].split(","), dtype=np.float32)
+            return decode_vector(value)
 
         return process
 
@@ -78,16 +85,21 @@ class VectorType(UserDefinedType):
         """Returns a comparator factory that provides the distance functions."""
 
         def l1_distance(self, other):
-            return self.op("VEC_L1_DISTANCE", return_type=Float)(other)
+            formatted_other = encode_vector(other)
+            return func.VEC_L1_DISTANCE(self, formatted_other).label("l1_distance")
 
         def l2_distance(self, other):
-            return self.op("VEC_L2_DISTANCE", return_type=Float)(other)
+            formatted_other = encode_vector(other)
+            return func.VEC_L2_DISTANCE(self, formatted_other).label("l2_distance")
 
         def cosine_distance(self, other):
-            return self.op("VEC_COSINE_DISTANCE", return_type=Float)(other)
+            formatted_other = encode_vector(other)
+            return func.VEC_COSINE_DISTANCE(self, formatted_other).label(
+                "cosine_distance"
+            )
 
         def negative_inner_product(self, other):
-            return self.op("VEC_NEGATIVE_INNER_PRODUCT", return_type=Float)(other)
-
-        def l2_norm(self, other):
-            return self.op("VEC_L2_NORM", return_type=Float)(other)
+            formatted_other = encode_vector(other)
+            return func.VEC_NEGATIVE_INNER_PRODUCT(self, formatted_other).label(
+                "negative_inner_product"
+            )

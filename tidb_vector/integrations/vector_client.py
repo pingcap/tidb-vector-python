@@ -8,6 +8,10 @@ from typing import Any, Dict, Generator, Iterable, List, Optional
 import sqlalchemy
 from sqlalchemy.orm import Session, declarative_base
 from tidb_vector.sqlalchemy import VectorType
+from tidb_vector.integrations.utils import (
+    get_embedding_column_definition,
+    EmbeddingColumnMismatchError,
+)
 
 logger = logging.getLogger()
 
@@ -17,6 +21,7 @@ class DistanceStrategy(str, enum.Enum):
 
     EUCLIDEAN = "l2"
     COSINE = "cosine"
+    INNER_PRODUCT = "inner_product"
 
 
 Base = declarative_base()  # type: Any
@@ -24,7 +29,7 @@ Base = declarative_base()  # type: Any
 _classes: Any = None
 
 
-def _create_vector_model(table_name: str):
+def _create_vector_model(table_name: str, dim: Optional[int] = None):
     """Create a vector model class."""
 
     global _classes
@@ -44,7 +49,7 @@ def _create_vector_model(table_name: str):
         id = sqlalchemy.Column(
             sqlalchemy.String(36), primary_key=True, default=lambda: str(uuid.uuid4())
         )
-        embedding = sqlalchemy.Column(VectorType())
+        embedding = sqlalchemy.Column(VectorType(dim))
         document = sqlalchemy.Column(sqlalchemy.Text, nullable=True)
         meta = sqlalchemy.Column(sqlalchemy.JSON, nullable=True)
         create_time = sqlalchemy.Column(
@@ -75,6 +80,7 @@ class TiDBVectorClient:
         connection_string: str,
         table_name: str,
         distance_strategy: DistanceStrategy = DistanceStrategy.COSINE,
+        vector_dimension: Optional[int] = None,
         *,
         engine_args: Optional[Dict[str, Any]] = None,
         drop_existing_table: bool = False,
@@ -100,12 +106,28 @@ class TiDBVectorClient:
         super().__init__(**kwargs)
         self.connection_string = connection_string
         self._distance_strategy = distance_strategy
+        self._vector_dimension = vector_dimension
+        self._table_name = table_name
         self._engine_args = engine_args or {}
         self._drop_existing_table = drop_existing_table
         self._bind = self._create_engine()
-        self._table_model = _create_vector_model(table_name)
+        self._check_table_compatibility()  # check if the embedding is compatible
+        self._table_model = _create_vector_model(table_name, vector_dimension)
         _ = self.distance_strategy  # check if distance strategy is valid
         self._create_table_if_not_exists()
+
+    def _check_table_compatibility(self) -> None:
+        """
+        Check if the table is compatible with the current configuration.
+        """
+        actual_dim = get_embedding_column_definition(
+            self.connection_string, self._table_name, "embedding"
+        )
+        if actual_dim is not None and actual_dim != self._vector_dimension:
+            raise EmbeddingColumnMismatchError(
+                existing_col=f"vector<float>({actual_dim})",
+                expected_col=f"vector<float>({self._vector_dimension})",
+            )
 
     def _create_table_if_not_exists(self) -> None:
         """
@@ -146,6 +168,8 @@ class TiDBVectorClient:
             return self._table_model.embedding.l2_distance
         elif self._distance_strategy == DistanceStrategy.COSINE:
             return self._table_model.embedding.cosine_distance
+        elif self._distance_strategy == DistanceStrategy.INNER_PRODUCT:
+            return self._table_model.embedding.negative_inner_product
         else:
             raise ValueError(
                 f"Got unexpected value for distance: {self._distance_strategy}. "
@@ -431,27 +455,3 @@ class TiDBVectorClient:
             # Log the error or handle it as needed
             logger.error(f"SQL execution error: {str(e)}")
             return {"success": False, "result": None, "error": str(e)}
-
-    @staticmethod
-    def check_table_existence(
-        connection_string: str,
-        table_name: str,
-        engine_args: Optional[Dict[str, Any]] = None,
-    ) -> bool:
-        """
-        Check if the vector table exists in the database.
-
-        Args:
-            connection_string (str): The connection string for the database.
-            table_name (str): The name of the table to check.
-            engine_args (Optional[Dict[str, Any]]): Additional arguments for the engine.
-
-        Returns:
-            bool: True if the table exists, False otherwise.
-        """
-        engine = sqlalchemy.create_engine(connection_string, **(engine_args or {}))
-        try:
-            inspector = sqlalchemy.inspect(engine)
-            return table_name in inspector.get_table_names()
-        finally:
-            engine.dispose()
