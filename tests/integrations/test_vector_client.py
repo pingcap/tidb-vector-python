@@ -101,7 +101,6 @@ def test_mismatch_vector_dimension(
             vector_dimension=ADA_TOKEN_COUNT - 1,
             drop_existing_table=True,
         )
-        exit()
         tidb_vs.insert(
             texts=node_embeddings[1],
             ids=node_embeddings[0],
@@ -131,7 +130,7 @@ def test_various_distance_strategies(
     node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
 ) -> None:
     """Test various distance strategies."""
-
+    reset_vector_model()
     distance_strategies = ["l2", "cosine", "inner_product"]
     for distance_strategy in distance_strategies:
         tidb_vs = TiDBVectorClient(
@@ -177,6 +176,7 @@ def test_get_existing_table(
 ) -> None:
     """Test get existing vector table."""
 
+    reset_vector_model()
     # prepare a table
     tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
@@ -228,6 +228,7 @@ def test_insert(
 ) -> None:
     """Test insert function."""
 
+    reset_vector_model()
     tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
@@ -269,6 +270,7 @@ def test_delete(
 ) -> None:
     """Test delete function."""
 
+    reset_vector_model()
     # prepare data
     tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
@@ -386,6 +388,7 @@ def test_query(
 ) -> None:
     """Test query function."""
 
+    reset_vector_model()
     # prepare data
     tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
@@ -517,6 +520,7 @@ def test_complex_query(
 ) -> None:
     """Test complex query function."""
 
+    reset_vector_model()
     # prepare data
     tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
@@ -695,6 +699,8 @@ def test_execute(
     node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
 ) -> None:
     """Test execute method with SELECT query."""
+
+    reset_vector_model()
     tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
