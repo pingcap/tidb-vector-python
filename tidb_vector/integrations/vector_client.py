@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import logging
 import enum
 import uuid
-from typing import Any, Dict, Generator, Iterable, List, Optional
+from typing import Type, Tuple, Any, Dict, Generator, Iterable, List, Optional
 
 import sqlalchemy
 from sqlalchemy.orm import Session, declarative_base
@@ -24,28 +24,14 @@ class DistanceStrategy(str, enum.Enum):
     INNER_PRODUCT = "inner_product"
 
 
-Base = declarative_base()  # type: Any
-
-_classes: Any = None
-
-
-def reset_vector_model():
-    """Reset the vector model class."""
-    global _classes
-    global Base
-
-    _classes = None
-    Base = declarative_base()
-
-
-def _create_vector_model(table_name: str, dim: Optional[int] = None):
+def _create_vector_table_model(
+    table_name: str, dim: Optional[int] = None
+) -> Tuple[Type[declarative_base], Type]:
     """Create a vector model class."""
 
-    global _classes
-    if _classes is not None:
-        return _classes
+    OrmBase = declarative_base()  # type: Any
 
-    class VectorTableModel(Base):
+    class VectorTableModel(OrmBase):
         """
         embedding: The column to store the vector data.
         document: The column to store the document content.
@@ -71,8 +57,7 @@ def _create_vector_model(table_name: str, dim: Optional[int] = None):
             ),
         )
 
-    _classes = VectorTableModel
-    return _classes
+    return OrmBase, VectorTableModel
 
 
 @dataclass
@@ -121,7 +106,9 @@ class TiDBVectorClient:
         self._drop_existing_table = drop_existing_table
         self._bind = self._create_engine()
         self._check_table_compatibility()  # check if the embedding is compatible
-        self._table_model = _create_vector_model(table_name, vector_dimension)
+        self._orm_base, self._table_model = _create_vector_table_model(
+            table_name, vector_dimension
+        )
         _ = self.distance_strategy  # check if distance strategy is valid
         self._create_table_if_not_exists()
 
@@ -135,11 +122,15 @@ class TiDBVectorClient:
         actual_dim = get_embedding_column_definition(
             self.connection_string, self._table_name, "embedding"
         )
-        if actual_dim is not None and actual_dim != self._vector_dimension:
-            raise EmbeddingColumnMismatchError(
-                existing_col=f"vector<float>({actual_dim})",
-                expected_col=f"vector<float>({self._vector_dimension})",
-            )
+        if actual_dim is not None:
+            # If the vector dimension is not set, set it to the actual dimension
+            if self._vector_dimension is None:
+                self._vector_dimension = actual_dim
+            elif actual_dim != self._vector_dimension:
+                raise EmbeddingColumnMismatchError(
+                    existing_col=f"vector<float>({actual_dim})",
+                    expected_col=f"vector<float>({self._vector_dimension})",
+                )
 
     def _create_table_if_not_exists(self) -> None:
         """
@@ -149,13 +140,13 @@ class TiDBVectorClient:
         if self._drop_existing_table:
             self.drop_table()
         with Session(self._bind) as session, session.begin():
-            Base.metadata.create_all(session.get_bind())
+            self._orm_base.metadata.create_all(session.get_bind())
             # wait for tidb support vector index
 
     def drop_table(self) -> None:
         """Drops the table if it exists."""
         with Session(self._bind) as session, session.begin():
-            Base.metadata.drop_all(session.get_bind())
+            self._orm_base.metadata.drop_all(session.get_bind())
 
     def _create_engine(self) -> sqlalchemy.engine.Engine:
         """Create a sqlalchemy engine."""
