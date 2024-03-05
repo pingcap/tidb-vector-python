@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "tidbvec"
-version = "0.0.6"
+name = "tidb-vector"
+version = "0.0.4"
 description = ""
 authors = ["IANTHEREAL <argregoryian@gmail.com>"]
 license = "Apache-2.0"

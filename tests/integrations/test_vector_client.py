@@ -136,7 +136,6 @@ def test_various_distance_strategies(
     node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
 ) -> None:
     """Test various distance strategies."""
-
     distance_strategies = ["l2", "cosine", "inner_product"]
     for distance_strategy in distance_strategies:
         tidb_vs = TiDBVectorClient(
