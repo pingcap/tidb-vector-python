@@ -87,9 +87,9 @@ class L2Distance(DistanceBase):
     function = 'VEC_L2_DISTANCE'
 
 
-class MaxInnerProduct(DistanceBase):
+class CosineDistance(DistanceBase):
     function = 'VEC_COSINE_DISTANCE'
 
 
-class CosineDistance(DistanceBase):
+class NegativeInnerProduct(DistanceBase):
     function = 'VEC_NEGATIVE_INNER_PRODUCT'
