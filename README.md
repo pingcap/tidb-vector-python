@@ -54,19 +54,19 @@ session.commit()
 Get the nearest neighbors
 
 ```python
-session.scalars(select(Test).order_by(Test.embedding.l2_distance([3, 1, 2])).limit(5))
+session.scalars(select(Test).order_by(Test.embedding.l2_distance([1, 2, 3.1])).limit(5))
 ```
 
 Get the distance
 
 ```python
-session.scalars(select(Test.embedding.l2_distance([3, 1, 2])))
+session.scalars(select(Test.embedding.l2_distance([1, 2, 3.1])))
 ```
 
 Get within a certain distance
 
 ```python
-session.scalars(select(Test).filter(Test.embedding.l2_distance([3, 1, 2]) < 5))
+session.scalars(select(Test).filter(Test.embedding.l2_distance([1, 2, 3.1]) < 0.2))
 ```
 
 ### Django
