@@ -29,6 +29,9 @@ def decode_vector(value):
     if value is None or isinstance(value, np.ndarray):
         return value
 
+    if isinstance(value, bytes):
+        value = value.decode("utf-8")
+
     return np.array(value[1:-1].split(","), dtype=np.float32)
 
 
