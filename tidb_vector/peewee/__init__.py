@@ -1,4 +1,4 @@
-from peewee import Expression, Field
+from peewee import Field, fn
 
 from tidb_vector.utils import decode_vector, encode_vector
 
@@ -19,17 +19,14 @@ class VectorField(Field):
     def python_value(self, value):
         return decode_vector(value)
 
-    def _distance(self, op, vector):
-        return Expression(lhs=self, op=op, rhs=self.to_value(vector))
-
     def l1_distance(self, vector):
-        return self._distance("VEC_L1_DISTANCE", vector)
+        return fn.VEC_L1_DISTANCE(self, self.to_value(vector))
 
     def l2_distance(self, vector):
-        return self._distance("VEC_L2_DISTANCE", vector)
+        return fn.VEC_L2_DISTANCE(self, self.to_value(vector))
 
     def cosine_distance(self, vector):
-        return self._distance('VEC_COSINE_DISTANCE', vector)
+        return fn.VEC_COSINE_DISTANCE(self, self.to_value(vector))
 
     def negative_inner_product(self, vector):
-        return self._distance("VEC_NEGATIVE_INNER_PRODUCT", vector)
+        return fn.VEC_NEGATIVE_INNER_PRODUCT(self, self.to_value(vector))

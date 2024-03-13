@@ -23,6 +23,7 @@ supports following orm or framework:
 
 - [SQLAlchemy](#sqlalchemy)
 - [Django](#django)
+- [Peewee](#peewee)
 
 ### SQLAlchemy
 
@@ -72,3 +73,42 @@ session.scalars(select(Test).filter(Test.embedding.l2_distance([1, 2, 3.1]) < 0.
 ### Django
 
 To use vector field in Django, you need to use [`django-tidb`](https://github.com/pingcap/django-tidb?tab=readme-ov-file#vectorfield-beta).
+
+### Peewee
+
+#### Define peewee table with vector field
+
+```python
+class TestModel(Model):
+    class Meta:
+        database = db
+        table_name = 'test'
+
+    embedding = VectorField(3)
+```
+
+#### Insert data
+
+```python
+TestModel.create(embedding=[1, 2, 3])
+```
+
+#### Query data
+
+Get the nearest neighbors
+
+```python
+TestModel.select().order_by(TestModel.embedding.l2_distance([1, 2, 3.1])).limit(5)
+```
+
+Get the distance
+
+```python
+TestModel.select(TestModel.embedding.cosine_distance([1, 2, 3.1]).alias('distance'))
+```
+
+Get within a certain distance
+
+```python
+TestModel.select().where(TestModel.embedding.l2_distance([1, 2, 3.1]) < 0.5)
+```
