@@ -80,6 +80,17 @@ To use vector field in Django, you need to use [`django-tidb`](https://github.co
 Define peewee table with vector field
 
 ```python
+from peewee import Model, MySQLDatabase
+from tidb_vector.peewee import VectorField
+
+db = MySQLDatabase(
+    'peewee_test',
+    user='xxxxxxxx.root',
+    password='xxxxxxxx',
+    host='xxxxxxxx.shared.aws.tidbcloud.com',
+    port=4000,
+)
+
 class TestModel(Model):
     class Meta:
         database = db
