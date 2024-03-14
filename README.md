@@ -123,7 +123,7 @@ Get within a certain distance
 TestModel.select().where(TestModel.embedding.l2_distance([1, 2, 3.1]) < 0.5)
 ```
 
-### AI Agent
+### TiDB Vector Client
 
 You can also use the built-in `TiDBVectorClient` in the AI Agent framework (like langchain) directly to interact with TiDB Vector, this way you don't need to care about the underlying ORM.
 
