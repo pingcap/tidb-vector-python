@@ -121,6 +121,8 @@ We provide `TiDBVectorClient` which is based on sqlalchemy, you need to use `pip
 Create a `TiDBVectorClient` instance:
 
 ```python
+from tidb_vector.integrations import TiDBVectorClient
+
 TABLE_NAME = 'vector_test'
 CONNECTION_STRING = 'mysql+pymysql://<USER>:<PASSWORD>@<HOST>:4000/<DB>?ssl_ca=/etc/ssl/cert.pem&ssl_verify_cert=true&ssl_verify_identity=true'
 
