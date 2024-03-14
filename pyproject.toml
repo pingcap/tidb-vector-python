@@ -10,8 +10,12 @@ packages = [{include = "tidb_vector"}]
 
 [tool.poetry.dependencies]
 python = ">=3.8.1,<4.0"
-SQLAlchemy = ">=1.4,<3"
 numpy = "^1"
+SQLAlchemy = {version = ">=1.4,<3", optional = true}
+
+[tool.poetry.extras]
+client = ["SQLAlchemy"]
+
 
 [tool.poetry.group.test.dependencies]
 # The only dependencies that should be added are

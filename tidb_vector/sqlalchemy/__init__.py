@@ -1,5 +1,3 @@
-import numpy as np
-
 from sqlalchemy.types import UserDefinedType
 from sqlalchemy.sql import func
 
