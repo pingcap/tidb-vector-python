@@ -17,8 +17,12 @@ class VectorType(UserDefinedType):
             raise ValueError("expected dimension to be an integer or None")
 
         # tidb vector dimention length has limitation
-        if dim is not None and (dim < MIN_DIMENSION_LENGTH or dim > MAX_DIMENSION_LENGTH):
-            raise ValueError(f"expected dimension to be in [{MIN_DIMENSION_LENGTH}, {MAX_DIMENSION_LENGTH}]")
+        if dim is not None and (
+            dim < MIN_DIMENSION_LENGTH or dim > MAX_DIMENSION_LENGTH
+        ):
+            raise ValueError(
+                f"expected dimension to be in [{MIN_DIMENSION_LENGTH}, {MAX_DIMENSION_LENGTH}]"
+            )
 
         super(UserDefinedType, self).__init__()
         self.dim = dim

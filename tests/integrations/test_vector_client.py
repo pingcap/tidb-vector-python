@@ -715,7 +715,8 @@ def test_execute(
 
     # Create a testing table
     result = tidb_vs.execute(
-        "CREATE TABLE IF NOT EXISTS test_tidb_vector_execution_function (id VARCHAR(36), document VARCHAR(100), category VARCHAR(100))"
+        "CREATE TABLE IF NOT EXISTS test_tidb_vector_execution_function "
+        "(id VARCHAR(36), document VARCHAR(100), category VARCHAR(100))"
     )
     assert result["success"] is True
     assert result["error"] is None
