@@ -58,4 +58,4 @@ jobs:
           sudo apt-get install -y libmemcached-dev zlib1g-dev
 
       - name: Run tests
-        run: tox -e test
+        run: tox
