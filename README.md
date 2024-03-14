@@ -24,7 +24,7 @@ supports following orm or framework:
 - [SQLAlchemy](#sqlalchemy)
 - [Django](#django)
 - [Peewee](#peewee)
-- [AI Agent](#ai-agent)
+- [TiDB Vector Client](#tidb-vector-client)
 
 ### SQLAlchemy
 
