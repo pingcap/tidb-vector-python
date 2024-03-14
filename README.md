@@ -125,7 +125,7 @@ TestModel.select().where(TestModel.embedding.l2_distance([1, 2, 3.1]) < 0.5)
 
 ### TiDB Vector Client
 
-You can also use the built-in `TiDBVectorClient` in the AI Agent framework (like langchain) directly to interact with TiDB Vector, this way you don't need to care about the underlying ORM.
+Within the framework, you can directly utilize the built-in `TiDBVectorClient`, as demonstrated by integrations like [Langchain](https://python.langchain.com/docs/integrations/vectorstores/tidb_vector) and  [Llama index](https://docs.llamaindex.ai/en/stable/community/integrations/vector_stores.html#using-a-vector-store-as-an-index),  to seamlessly interact with TiDB Vector. This approach abstracts away the need to manage the underlying ORM, simplifying your interaction with the vector store.
 
 We provide `TiDBVectorClient` which is based on sqlalchemy, you need to use `pip install tidb-vector[client]` to install it.
 
