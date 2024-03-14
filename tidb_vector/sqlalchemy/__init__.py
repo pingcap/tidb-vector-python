@@ -1,38 +1,8 @@
-import numpy as np
-
 from sqlalchemy.types import UserDefinedType
 from sqlalchemy.sql import func
 
-
-def encode_vector(value, dim=None):
-    if value is None:
-        return value
-
-    if isinstance(value, np.ndarray):
-        if value.ndim != 1:
-            raise ValueError("expected ndim to be 1")
-
-        if not np.issubdtype(value.dtype, np.integer) and not np.issubdtype(
-            value.dtype, np.floating
-        ):
-            raise ValueError("dtype must be numeric")
-
-        value = value.tolist()
-
-    if dim is not None and len(value) != dim:
-        raise ValueError("expected %d dimensions, not %d" % (dim, len(value)))
-
-    return "[" + ",".join([str(float(v)) for v in value]) + "]"
-
-
-def decode_vector(value):
-    if value is None or isinstance(value, np.ndarray):
-        return value
-
-    if isinstance(value, bytes):
-        value = value.decode("utf-8")
-
-    return np.array(value[1:-1].split(","), dtype=np.float32)
+from tidb_vector.constants import MAX_DIMENSION_LENGTH, MIN_DIMENSION_LENGTH
+from tidb_vector.utils import decode_vector, encode_vector
 
 
 class VectorType(UserDefinedType):
@@ -46,9 +16,9 @@ class VectorType(UserDefinedType):
         if dim is not None and not isinstance(dim, int):
             raise ValueError("expected dimension to be an integer or None")
 
-        # tidb vector dim length is allowed to be in [1,16000]
-        if dim is not None and (dim < 1 or dim > 16000):
-            raise ValueError("expected dimension to be in [1,16000]")
+        # tidb vector dimention length has limitation
+        if dim is not None and (dim < MIN_DIMENSION_LENGTH or dim > MAX_DIMENSION_LENGTH):
+            raise ValueError(f"expected dimension to be in [{MIN_DIMENSION_LENGTH}, {MAX_DIMENSION_LENGTH}]")
 
         super(UserDefinedType, self).__init__()
         self.dim = dim
