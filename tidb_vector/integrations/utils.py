@@ -59,7 +59,9 @@ def get_embedding_column_definition(connection_string, table_name, column_name):
     engine = sqlalchemy.create_engine(connection_string)
     try:
         with engine.connect() as connection:
-            query = f"SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{table_name}' AND COLUMN_NAME = '{column_name}'"
+            query = f"""SELECT COLUMN_TYPE
+                        FROM INFORMATION_SCHEMA.COLUMNS
+                        WHERE TABLE_NAME = '{table_name}' AND COLUMN_NAME = '{column_name}'"""
             result = connection.execute(sqlalchemy.text(query)).fetchone()
             if result:
                 return extract_dimension_from_column_definition(result[0])

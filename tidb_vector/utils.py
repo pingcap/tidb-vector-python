@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def encode_vector(value, dim=None):
     if value is None:
         return value

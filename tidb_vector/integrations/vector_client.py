@@ -439,7 +439,10 @@ class TiDBVectorClient:
             This would return: {'success': True, 'result': [(user data)], 'error': None}
 
             - Inserting data into a table:
-            execute("INSERT INTO users (username, email) VALUES (:username, :email)", {"username": "new_user", "email": "new_user@example.com"})
+            execute(
+                "INSERT INTO users (username, email) VALUES (:username, :email)",
+                {"username": "new_user", "email": "new_user@example.com"}
+            )
             This would return: {'success': True, 'result': 1, 'error': None} if one row was affected.
 
             - Handling an error (e.g., table does not exist):
