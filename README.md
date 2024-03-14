@@ -24,6 +24,7 @@ supports following orm or framework:
 - [SQLAlchemy](#sqlalchemy)
 - [Django](#django)
 - [Peewee](#peewee)
+- [AI Agent](#ai-agent)
 
 ### SQLAlchemy
 
@@ -76,7 +77,7 @@ To use vector field in Django, you need to use [`django-tidb`](https://github.co
 
 ### Peewee
 
-#### Define peewee table with vector field
+Define peewee table with vector field
 
 ```python
 class TestModel(Model):
@@ -87,13 +88,11 @@ class TestModel(Model):
     embedding = VectorField(3)
 ```
 
-#### Insert data
+Insert vector data
 
 ```python
 TestModel.create(embedding=[1, 2, 3])
 ```
-
-#### Query data
 
 Get the nearest neighbors
 
@@ -111,4 +110,74 @@ Get within a certain distance
 
 ```python
 TestModel.select().where(TestModel.embedding.l2_distance([1, 2, 3.1]) < 0.5)
+```
+
+### AI Agent
+
+You can also use the built-in `TiDBVectorClient` in the AI Agent framework (like langchain) directly to interact with TiDB Vector, this way you don't need to care about the underlying ORM.
+
+We provide `TiDBVectorClient` which is based on sqlalchemy, you need to use `pip install tidb-vector[client]` to install it.
+
+Create a `TiDBVectorClient` instance:
+
+```python
+TABLE_NAME = 'vector_test'
+CONNECTION_STRING = 'mysql+pymysql://<USER>:<PASSWORD>@<HOST>:4000/<DB>?ssl_ca=/etc/ssl/cert.pem&ssl_verify_cert=true&ssl_verify_identity=true'
+
+tidb_vs = TiDBVectorClient(
+    # the table which will store the vector data
+    table_name=TABLE_NAME,
+    # tidb connection string
+    connection_string=CONNECTION_STRING,
+    # the dimension of the vector, in this example, we use the ada model, which has 1536 dimensions
+    vector_dimension=1536,
+    # if recreate the table if it already exists
+    drop_existing_table=True,
+)
+```
+
+Bulk insert:
+
+```python
+ids = [
+    "f8e7dee2-63b6-42f1-8b60-2d46710c1971",
+    "8dde1fbc-2522-4ca2-aedf-5dcb2966d1c6",
+    "e4991349-d00b-485c-a481-f61695f2b5ae",
+]
+documents = ["foo", "bar", "baz"]
+embeddings = [
+    text_to_embedding("foo"),
+    text_to_embedding("bar"),
+    text_to_embedding("baz"),
+]
+metadatas = [
+    {"page": 1, "category": "P1"},
+    {"page": 2, "category": "P1"},
+    {"page": 3, "category": "P2"},
+]
+
+tidb_vs.insert(
+    ids=ids,
+    texts=documents,
+    embeddings=embeddings,
+    metadatas=metadatas,
+)
+```
+
+Query:
+
+```python
+tidb_vs.query(text_to_embedding("foo"), k=3)
+
+# query with filter
+tidb_vs.query(text_to_embedding("foo"), k=3, filter={"category": "P1"})
+```
+
+Bulk delete:
+
+```python
+tidb_vs.delete(["f8e7dee2-63b6-42f1-8b60-2d46710c1971"])
+
+# delete with filter
+tidb_vs.delete(["f8e7dee2-63b6-42f1-8b60-2d46710c1971"], filter={"category": "P1"})
 ```
