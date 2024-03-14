@@ -1,11 +1,11 @@
 """Test TiDB Vector Search functionality."""
 from __future__ import annotations
 
-import os
 from typing import List, Tuple
 import sqlalchemy
-
 import pytest
+
+from ..config import TestConfig
 
 try:
     from tidb_vector.integrations import TiDBVectorClient  # noqa
@@ -15,10 +15,10 @@ try:
     )  # noqa
 
     TABLE_NAME = "tidb_vector_test"
-    CONNECTION_STRING = os.getenv("TEST_TiDB_CONNECTION_URL", "")
-
-    if CONNECTION_STRING == "":
-        raise OSError("TEST_TiDB_URL environment variable is not set")
+    CONNECTION_STRING = (
+        f"mysql+pymysql://{TestConfig.TIDB_USER}:{TestConfig.TIDB_PASSWORD}@{TestConfig.TIDB_HOST}:4000/ci_integration"
+        f"?ssl_verify_cert=true&ssl_verify_identity=true"
+    )
 
     tidb_available = True
 except (OSError, ImportError):
