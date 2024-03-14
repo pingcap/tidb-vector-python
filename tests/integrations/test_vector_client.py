@@ -1,7 +1,6 @@
 """Test TiDB Vector Search functionality."""
 from __future__ import annotations
 
-import os
 from typing import List, Tuple
 import sqlalchemy
 import pytest
