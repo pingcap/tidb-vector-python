@@ -12,9 +12,8 @@ except ImportError:
     connect_kwargs = {}
 
 
-test_database = "ci_peewee_test"
 db = MySQLDatabase(
-    test_database,
+    "ci_peewee_test",
     host=TestConfig.TIDB_HOST,
     port=TestConfig.TIDB_PORT,
     user=TestConfig.TIDB_USER,

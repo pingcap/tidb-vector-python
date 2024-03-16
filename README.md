@@ -28,7 +28,7 @@ supports following orm or framework:
 
 ### SQLAlchemy
 
-#### Define table with vector field
+Define table with vector field
 
 ```python
 from sqlalchemy import Column, Integer
@@ -43,15 +43,13 @@ class Test(Base):
     embedding = Column(VectorType(3))
 ```
 
-#### Insert vector data
+Insert vector data
 
 ```python
 test = Test(embedding=[1, 2, 3])
 session.add(test)
 session.commit()
 ```
-
-#### Query with vector data
 
 Get the nearest neighbors
 
