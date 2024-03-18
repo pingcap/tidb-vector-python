@@ -71,7 +71,7 @@ session.scalars(select(Test).filter(Test.embedding.l2_distance([1, 2, 3.1]) < 0.
 
 ### Django
 
-To use vector field in Django, you need to use [`django-tidb`](https://github.com/pingcap/django-tidb?tab=readme-ov-file#vectorfield-beta).
+To use vector field in Django, you need to use [`django-tidb`](https://github.com/pingcap/django-tidb?tab=readme-ov-file#vector-beta).
 
 ### Peewee
 
