@@ -1,12 +1,15 @@
 [tool.poetry]
 name = "tidb-vector"
-version = "0.0.4"
+# this version is usless, now read the version from __init__.py
+version = "0.0.0"
 description = ""
 authors = ["IANTHEREAL <argregoryian@gmail.com>"]
 license = "Apache-2.0"
 readme = "README.md"
 packages = [{include = "tidb_vector"}]
 
+[tool.poetry-version-plugin]
+source = "init"
 
 [tool.poetry.dependencies]
 python = ">=3.8.1,<4.0"
@@ -15,7 +18,6 @@ SQLAlchemy = {version = ">=1.4,<3", optional = true}
 
 [tool.poetry.extras]
 client = ["SQLAlchemy"]
-
 
 [tool.poetry.group.test.dependencies]
 # The only dependencies that should be added are
