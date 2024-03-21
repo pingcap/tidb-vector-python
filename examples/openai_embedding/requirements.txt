@@ -1,0 +1,4 @@
+openai
+peewee
+pymysql
+tidb-vector
