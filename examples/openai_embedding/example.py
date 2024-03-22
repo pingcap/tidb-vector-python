@@ -3,10 +3,15 @@ from openai import OpenAI
 from peewee import Model, MySQLDatabase, TextField, SQL
 from tidb_vector.peewee import VectorField
 
+# Init OpenAI client
+# In this example, we use the text-embedding-3-small model to generate embeddings
 client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
 embedding_model = "text-embedding-3-small"
 embedding_dimensions = 1536
 
+# Init TiDB connection
+# Note: TiDB Serverless requires secure connection, so we need to set ssl_verify_cert and ssl_verify_identity to True
+# Remember to set the environment variables with your own TiDB credentials
 db = MySQLDatabase(
    'test',
     user=os.environ.get('TIDB_USERNAME'),
@@ -23,6 +28,7 @@ documents = [
    "TiKV is a distributed and transactional key-value database, which provides transactional APIs with ACID compliance. With the implementation of the Raft consensus algorithm and consensus state stored in RocksDB, TiKV guarantees data consistency between multiple replicas and high availability. ",
 ]
 
+# Define a model with a VectorField to store the embeddings
 class DocModel(Model):
     text = TextField()
     embedding = VectorField(dimensions=embedding_dimensions)
@@ -38,6 +44,7 @@ db.connect()
 db.drop_tables([DocModel])
 db.create_tables([DocModel])
 
+# Insert the documents and their embeddings into TiDB
 embeddings = [
     r.embedding
     for r in client.embeddings.create(
@@ -50,6 +57,10 @@ data_source = [
 ]
 DocModel.insert_many(data_source).execute()
 
+# Query the most similar documents to a question
+# 1. Generate the embedding of the question
+# 2. Query the most similar documents based on the cosine distance in TiDB
+# 3. Print the results
 question = "what is TiKV?"
 question_embedding = client.embeddings.create(input=question, model=embedding_model).data[0].embedding
 related_docs = DocModel.select(
