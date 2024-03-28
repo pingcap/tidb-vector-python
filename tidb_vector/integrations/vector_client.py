@@ -125,7 +125,7 @@ class TiDBVectorClient:
         if self._drop_existing_table:
             return
 
-        actual_dim = get_embedding_column_definition(
+        actual_dim, actual_distance_strategy = get_embedding_column_definition(
             self.connection_string, self._table_name, "embedding"
         )
         if actual_dim is not None:
@@ -136,6 +136,14 @@ class TiDBVectorClient:
                 raise EmbeddingColumnMismatchError(
                     existing_col=f"vector<float>({actual_dim})",
                     expected_col=f"vector<float>({self._vector_dimension})",
+                )
+        if actual_distance_strategy is not None:
+            if self._distance_strategy is None:
+                self._distance_strategy = DistanceStrategy(actual_distance_strategy)
+            elif actual_distance_strategy != self._distance_strategy.value:
+                raise EmbeddingColumnMismatchError(
+                    existing_col=f"vector<float>({actual_dim}) COMMENT 'hnsw(distance={actual_distance_strategy})'",
+                    expected_col=f"vector<float>({self._vector_dimension}) COMMENT 'hnsw(distance={self._distance_strategy})'",
                 )
 
     def _create_table_if_not_exists(self) -> None:
