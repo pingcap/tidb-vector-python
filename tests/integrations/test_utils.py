@@ -1,22 +1,46 @@
 """Test TiDB Vector Search functionality."""
 from __future__ import annotations
 
-from tidb_vector.integrations.utils import extract_dimension_from_column_definition
+from tidb_vector.integrations.utils import extract_info_from_column_definition
 
 
-def test_extract_dimension_from_column_definition():
-    # Test case 1: column_type with dimension
-    column_type = "vector<float>(1536) DEFAULT NULL"
-    assert extract_dimension_from_column_definition(column_type) == 1536
+def test_extract_info_from_column_definition():
+    # Test case with dimension and distance metric
+    column_type = "VECTOR<FLOAT>(128) COMMENT 'hnsw(distance=cosine)'"
+    expected_result = (128, "cosine")
+    assert extract_info_from_column_definition(column_type) == expected_result
 
-    # Test case 2: column_type without dimension
-    column_type = "vector<float> DEFAULT NULL"
-    assert extract_dimension_from_column_definition(column_type) is None
+    # Test case with dimension but no distance metric
+    column_type = "VECTOR<FLOAT>(256) COMMENT 'some comment'"
+    expected_result = (256, None)
+    assert extract_info_from_column_definition(column_type) == expected_result
 
-    # Test case 3: column_type with invalid dimension
-    column_type = "vector<float>(abc) DEFAULT NULL"
-    assert extract_dimension_from_column_definition(column_type) is None
+    # Test case with no dimension and no distance metric
+    column_type = "VECTOR<FLOAT> COMMENT 'another comment'"
+    expected_result = (None, None)
+    assert extract_info_from_column_definition(column_type) == expected_result
 
-    # Test case 4: column_type with negative dimension
-    column_type = "VECTOR<FLOAT>(-5)"
-    assert extract_dimension_from_column_definition(column_type) is None
+    # Test case with no dimension and no comment
+    column_type = "VECTOR<FLOAT>"
+    expected_result = (None, None)
+    assert extract_info_from_column_definition(column_type) == expected_result
+
+    # Test case with dimension but no comment
+    column_type = "VECTOR<FLOAT>"
+    expected_result = (None, None)
+    assert extract_info_from_column_definition(column_type) == expected_result
+
+    # Test normal case with double quotes
+    column_type = 'VECTOR<FLOAT>(128) COMMENT "hnsw(distance=cosine)"'
+    expected_result = (128, "cosine")
+    assert extract_info_from_column_definition(column_type) == expected_result
+
+    # Test case with single quotes without index type
+    column_type = "VECTOR<FLOAT> COMMENT 'distance=l2'"
+    expected_result = (None, "l2")
+    assert extract_info_from_column_definition(column_type) == expected_result
+
+    # Test case with addition comment content
+    column_type = "VECTOR<FLOAT>(128) COMMENT 'test, hnsw(distance=l2)'"
+    expected_result = (128, "l2")
+    assert extract_info_from_column_definition(column_type) == expected_result
