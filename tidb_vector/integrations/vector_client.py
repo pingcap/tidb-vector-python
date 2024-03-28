@@ -21,11 +21,13 @@ class DistanceStrategy(str, enum.Enum):
 
     EUCLIDEAN = "l2"
     COSINE = "cosine"
-    INNER_PRODUCT = "inner_product"
+    # INNER_PRODUCT = "inner_product"
 
 
 def _create_vector_table_model(
-    table_name: str, dim: Optional[int] = None
+    table_name: str,
+    dim: Optional[int] = None,
+    distance: Optional[DistanceStrategy] = None,
 ) -> Tuple[Type[declarative_base], Type]:
     """Create a vector model class."""
 
@@ -44,7 +46,11 @@ def _create_vector_table_model(
         id = sqlalchemy.Column(
             sqlalchemy.String(36), primary_key=True, default=lambda: str(uuid.uuid4())
         )
-        embedding = sqlalchemy.Column(VectorType(dim))
+        embedding = sqlalchemy.Column(
+            VectorType(dim),  # Using the VectorType to store the vector data
+            nullable=False,  # Assuming non-nullability as before
+            comment="" if distance is None else f"hnsw(distance={distance.value})",
+        )
         document = sqlalchemy.Column(sqlalchemy.Text, nullable=True)
         meta = sqlalchemy.Column(sqlalchemy.JSON, nullable=True)
         create_time = sqlalchemy.Column(
@@ -171,8 +177,8 @@ class TiDBVectorClient:
             return self._table_model.embedding.l2_distance
         elif self._distance_strategy == DistanceStrategy.COSINE:
             return self._table_model.embedding.cosine_distance
-        elif self._distance_strategy == DistanceStrategy.INNER_PRODUCT:
-            return self._table_model.embedding.negative_inner_product
+        # elif self._distance_strategy == DistanceStrategy.INNER_PRODUCT:
+        #    return self._table_model.embedding.negative_inner_product
         else:
             raise ValueError(
                 f"Got unexpected value for distance: {self._distance_strategy}. "
