@@ -59,19 +59,19 @@ def get_embedding_column_definition(connection_string, table_name, column_name):
     engine = sqlalchemy.create_engine(connection_string)
     try:
         with engine.connect() as connection:
-            query = f"""SELECT COLUMN_TYPE
+            query = f"""SELECT COLUMN_TYPE, COLUMN_COMMENT
                         FROM INFORMATION_SCHEMA.COLUMNS
                         WHERE TABLE_NAME = '{table_name}' AND COLUMN_NAME = '{column_name}'"""
             result = connection.execute(sqlalchemy.text(query)).fetchone()
             if result:
-                return extract_info_from_column_definition(result[0])
+                return extract_info_from_column_definition(result[0], result[1])
     finally:
         engine.dispose()
 
     return None
 
 
-def extract_info_from_column_definition(column_type):
+def extract_info_from_column_definition(column_type, column_comment):
     """
     Extracts the dimension and distance metric from a column definition,
     supporting both optional dimension and optional comment.
@@ -93,12 +93,7 @@ def extract_info_from_column_definition(column_type):
     )
 
     # Extracting index type and distance metric from the comment, supporting both single and double quotes.
-    comment_match = re.search(r"COMMENT ['\"](.*?)['\"]", column_type, re.IGNORECASE)
-    if comment_match:
-        comment_content = comment_match.group(1)
-        distance_match = re.search(r"distance=([^,\)]+)", comment_content)
-        distance = distance_match.group(1) if distance_match else None
-    else:
-        distance = None
+    distance_match = re.search(r"distance=([^,\)]+)", column_comment)
+    distance = distance_match.group(1) if distance_match else None
 
     return dimension, distance
