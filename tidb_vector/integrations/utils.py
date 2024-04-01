@@ -54,37 +54,46 @@ def get_embedding_column_definition(connection_string, table_name, column_name):
         column_name (str): The name of the column.
 
     Returns:
-        str: The column definition of the embedding column, or None if not found.
+        tuple: A tuple containing the dimension (int or None) and distance metric (str or None).
     """
     engine = sqlalchemy.create_engine(connection_string)
     try:
         with engine.connect() as connection:
-            query = f"""SELECT COLUMN_TYPE
+            query = f"""SELECT COLUMN_TYPE, COLUMN_COMMENT
                         FROM INFORMATION_SCHEMA.COLUMNS
                         WHERE TABLE_NAME = '{table_name}' AND COLUMN_NAME = '{column_name}'"""
             result = connection.execute(sqlalchemy.text(query)).fetchone()
             if result:
-                return extract_dimension_from_column_definition(result[0])
+                return extract_info_from_column_definition(result[0], result[1])
     finally:
         engine.dispose()
 
     return None
 
 
-def extract_dimension_from_column_definition(column_type):
+def extract_info_from_column_definition(column_type, column_comment):
     """
-    Extracts the dimension from a column definition of type 'VECTOR<FLOAT>(dimension)'.
+    Extracts the dimension and distance metric from a column definition,
+    supporting both optional dimension and optional comment.
 
     Args:
-        column_type (str): The column definition.
+        column_type (str): The column definition, possibly including dimension and a comment.
 
     Returns:
-        int or None: The dimension if it exists, None otherwise.
+        tuple: A tuple containing the dimension (int or None) and the distance metric (str or None).
     """
-    match = re.search(r"VECTOR<FLOAT>(?:\((\d+)\))?", column_type, re.IGNORECASE)
+    # Try to extract the dimension, which is optional.
+    dimension_match = re.search(
+        r"VECTOR<FLOAT>(?:\((\d+)\))?", column_type, re.IGNORECASE
+    )
+    dimension = (
+        int(dimension_match.group(1))
+        if dimension_match and dimension_match.group(1)
+        else None
+    )
 
-    if match:
-        if match.group(1):
-            return int(match.group(1))
-        return None
-    return None
+    # Extracting index type and distance metric from the comment, supporting both single and double quotes.
+    distance_match = re.search(r"distance=([^,\)]+)", column_comment)
+    distance = distance_match.group(1) if distance_match else None
+
+    return dimension, distance

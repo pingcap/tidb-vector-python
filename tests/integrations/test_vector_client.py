@@ -88,7 +88,7 @@ def test_basic_search(
 
 
 @pytest.mark.skipif(not tidb_available, reason="tidb is not available")
-def test_mismatch_vector_dimension(
+def test_mismatch_dimension(
     node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
 ) -> None:
     """Test mismatch vector dimension."""
@@ -132,15 +132,73 @@ def test_mismatch_vector_dimension(
 
 
 @pytest.mark.skipif(not tidb_available, reason="tidb is not available")
+def test_mismatch_distance_algorithm(
+    node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
+) -> None:
+    """Test mismatch vector dimension."""
+
+    # Distance strategy need a vector dimension
+    try:
+        tidb_vs = TiDBVectorClient(
+            table_name=TABLE_NAME,
+            connection_string=CONNECTION_STRING,
+            distance_strategy="l2",  # type: ignore
+            drop_existing_table=True,
+        )
+        assert False, "distance strategy without vector dimension raised an error"
+    except Exception:
+        pass
+
+    # prepare data
+    tidb_vs = TiDBVectorClient(
+        table_name=TABLE_NAME,
+        connection_string=CONNECTION_STRING,
+        vector_dimension=ADA_TOKEN_COUNT,
+        distance_strategy="l2",  # type: ignore
+        drop_existing_table=True,
+    )
+    tidb_vs.insert(
+        texts=node_embeddings[1],
+        ids=node_embeddings[0],
+        embeddings=node_embeddings[2],
+    )
+
+    try:
+        _ = TiDBVectorClient(
+            table_name=TABLE_NAME,
+            connection_string=CONNECTION_STRING,
+            distance_strategy="cosine",  # type: ignore
+            vector_dimension=ADA_TOKEN_COUNT,
+        )
+        assert (
+            False
+        ), "[vector client initialization] mismatch vector distance algorithm raised an error"
+    except EmbeddingColumnMismatchError:
+        pass
+
+    tidb_vs2 = TiDBVectorClient(
+        table_name=TABLE_NAME,
+        connection_string=CONNECTION_STRING,
+    )
+    tidb_vs2_vector_dimension = tidb_vs2._vector_dimension
+    tidb_vs2_vector_distance = tidb_vs2._distance_strategy
+    tidb_vs.drop_table()
+
+    assert tidb_vs2_vector_dimension == ADA_TOKEN_COUNT, "vector dimension mismatch"
+    assert tidb_vs2_vector_distance == "l2", "vector distance algorithm mismatch"
+
+
+@pytest.mark.skipif(not tidb_available, reason="tidb is not available")
 def test_various_distance_strategies(
     node_embeddings: Tuple[list[str], list[str], list[list[float]], list[dict]]
 ) -> None:
     """Test various distance strategies."""
-    distance_strategies = ["l2", "cosine", "inner_product"]
+    distance_strategies = ["l2", "cosine"]
     for distance_strategy in distance_strategies:
         tidb_vs = TiDBVectorClient(
             table_name=TABLE_NAME,
             connection_string=CONNECTION_STRING,
+            vector_dimension=ADA_TOKEN_COUNT,
             distance_strategy=distance_strategy,  # type: ignore
             drop_existing_table=True,
         )
@@ -164,6 +222,7 @@ def test_various_distance_strategies(
     try:
         _ = TiDBVectorClient(
             table_name=TABLE_NAME,
+            vector_dimension=ADA_TOKEN_COUNT,
             connection_string=CONNECTION_STRING,
             distance_strategy="error",  # type: ignore
             drop_existing_table=True,
@@ -185,6 +244,8 @@ def test_get_existing_table(
     tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
+        vector_dimension=ADA_TOKEN_COUNT,
+        distance_strategy="cosine",  # type: ignore
         drop_existing_table=True,
     )
 
@@ -235,6 +296,8 @@ def test_insert(
     tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
+        vector_dimension=ADA_TOKEN_COUNT,
+        distance_strategy="l2",  # type: ignore
         drop_existing_table=True,
     )
 
@@ -277,6 +340,8 @@ def test_delete(
     tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
+        vector_dimension=ADA_TOKEN_COUNT,
+        distance_strategy="cosine",  # type: ignore
         drop_existing_table=True,
     )
 
@@ -394,6 +459,8 @@ def test_query(
     tidb_vs = TiDBVectorClient(
         table_name=TABLE_NAME,
         connection_string=CONNECTION_STRING,
+        vector_dimension=ADA_TOKEN_COUNT,
+        distance_strategy="cosine",  # type: ignore
         drop_existing_table=True,
     )
 

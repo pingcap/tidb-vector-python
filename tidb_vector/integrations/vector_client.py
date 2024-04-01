@@ -21,11 +21,13 @@ class DistanceStrategy(str, enum.Enum):
 
     EUCLIDEAN = "l2"
     COSINE = "cosine"
-    INNER_PRODUCT = "inner_product"
+    # INNER_PRODUCT = "inner_product"
 
 
 def _create_vector_table_model(
-    table_name: str, dim: Optional[int] = None
+    table_name: str,
+    dim: Optional[int] = None,
+    distance: Optional[DistanceStrategy] = None,
 ) -> Tuple[Type[declarative_base], Type]:
     """Create a vector model class."""
 
@@ -44,7 +46,11 @@ def _create_vector_table_model(
         id = sqlalchemy.Column(
             sqlalchemy.String(36), primary_key=True, default=lambda: str(uuid.uuid4())
         )
-        embedding = sqlalchemy.Column(VectorType(dim))
+        embedding = sqlalchemy.Column(
+            VectorType(dim),  # Using the VectorType to store the vector data
+            nullable=False,  # Assuming non-nullability as before
+            comment="" if distance is None else f"hnsw(distance={distance})",
+        )
         document = sqlalchemy.Column(sqlalchemy.Text, nullable=True)
         meta = sqlalchemy.Column(sqlalchemy.JSON, nullable=True)
         create_time = sqlalchemy.Column(
@@ -73,7 +79,7 @@ class TiDBVectorClient:
         self,
         connection_string: str,
         table_name: str,
-        distance_strategy: DistanceStrategy = DistanceStrategy.COSINE,
+        distance_strategy: Optional[DistanceStrategy] = None,
         vector_dimension: Optional[int] = None,
         *,
         engine_args: Optional[Dict[str, Any]] = None,
@@ -107,7 +113,7 @@ class TiDBVectorClient:
         self._bind = self._create_engine()
         self._check_table_compatibility()  # check if the embedding is compatible
         self._orm_base, self._table_model = _create_vector_table_model(
-            table_name, vector_dimension
+            table_name, vector_dimension, distance_strategy
         )
         _ = self.distance_strategy  # check if distance strategy is valid
         self._create_table_if_not_exists()
@@ -119,7 +125,7 @@ class TiDBVectorClient:
         if self._drop_existing_table:
             return
 
-        actual_dim = get_embedding_column_definition(
+        actual_dim, actual_distance_strategy = get_embedding_column_definition(
             self.connection_string, self._table_name, "embedding"
         )
         if actual_dim is not None:
@@ -130,6 +136,15 @@ class TiDBVectorClient:
                 raise EmbeddingColumnMismatchError(
                     existing_col=f"vector<float>({actual_dim})",
                     expected_col=f"vector<float>({self._vector_dimension})",
+                )
+
+        if actual_distance_strategy is not None:
+            if self._distance_strategy is None:
+                self._distance_strategy = DistanceStrategy(actual_distance_strategy)
+            elif actual_distance_strategy != self._distance_strategy:
+                raise EmbeddingColumnMismatchError(
+                    existing_col=f"vector<float>({actual_dim}) COMMENT 'hnsw(distance={actual_distance_strategy})'",
+                    expected_col=f"vector<float>({self._vector_dimension}) COMMENT 'hnsw(distance={self._distance_strategy})'",
                 )
 
     def _create_table_if_not_exists(self) -> None:
@@ -171,8 +186,10 @@ class TiDBVectorClient:
             return self._table_model.embedding.l2_distance
         elif self._distance_strategy == DistanceStrategy.COSINE:
             return self._table_model.embedding.cosine_distance
-        elif self._distance_strategy == DistanceStrategy.INNER_PRODUCT:
-            return self._table_model.embedding.negative_inner_product
+        # elif self._distance_strategy == DistanceStrategy.INNER_PRODUCT:
+        #    return self._table_model.embedding.negative_inner_product
+        elif self._distance_strategy is None:  # default to cosine
+            return self._table_model.embedding.cosine_distance
         else:
             raise ValueError(
                 f"Got unexpected value for distance: {self._distance_strategy}. "
