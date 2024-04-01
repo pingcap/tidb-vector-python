@@ -2,7 +2,7 @@
 name = "tidb-vector"
 # this version is usless, now read the version from __init__.py
 version = "0.0.0"
-description = ""
+description = "A Python client for TiDB Vector"
 authors = ["IANTHEREAL <argregoryian@gmail.com>"]
 license = "Apache-2.0"
 readme = "README.md"
