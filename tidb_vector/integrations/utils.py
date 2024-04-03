@@ -68,7 +68,7 @@ def get_embedding_column_definition(connection_string, table_name, column_name):
     finally:
         engine.dispose()
 
-    return None
+    return None, None
 
 
 def extract_info_from_column_definition(column_type, column_comment):
