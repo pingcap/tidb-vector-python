@@ -26,6 +26,7 @@ Please make sure you have created a TiDB Serverless cluster with vector support 
 ## Examples
 
 - [OpenAI Embedding](./openai_embedding/README.md): use the OpenAI embedding model to generate vectors for text data.
+- [Image Search](./image_search/README.md): use the OpenAI CLIP model to generate vectors for image and text.
 
 ## Real World Applications
 
