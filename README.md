@@ -28,6 +28,8 @@ supports following orm or framework:
 
 ### SQLAlchemy
 
+Learn how to connect to TiDB Serverless in the [TiDB Cloud documentation](https://docs.pingcap.com/tidbcloud/dev-guide-sample-application-python-sqlalchemy).
+
 Define table with vector field
 
 ```python
@@ -81,12 +83,29 @@ Define peewee table with vector field
 from peewee import Model, MySQLDatabase
 from tidb_vector.peewee import VectorField
 
+# Using `pymysql` as the driver
+connect_kwargs = {
+    'ssl_verify_cert': True,
+    'ssl_verify_identity': True,
+}
+
+# Using `mysqlclient` as the driver
+connect_kwargs = {
+    'ssl_mode': 'VERIFY_IDENTITY',
+    'ssl': {
+        # Root certificate default path
+        # https://docs.pingcap.com/tidbcloud/secure-connections-to-serverless-clusters/#root-certificate-default-path
+        'ca': '/etc/ssl/cert.pem'  # MacOS
+    },
+}
+
 db = MySQLDatabase(
     'peewee_test',
     user='xxxxxxxx.root',
     password='xxxxxxxx',
     host='xxxxxxxx.shared.aws.tidbcloud.com',
     port=4000,
+    **connect_kwargs,
 )
 
 class TestModel(Model):
@@ -133,7 +152,7 @@ Create a `TiDBVectorClient` instance:
 from tidb_vector.integrations import TiDBVectorClient
 
 TABLE_NAME = 'vector_test'
-CONNECTION_STRING = 'mysql+pymysql://<USER>:<PASSWORD>@<HOST>:4000/<DB>?ssl_ca=/etc/ssl/cert.pem&ssl_verify_cert=true&ssl_verify_identity=true'
+CONNECTION_STRING = 'mysql+pymysql://<USER>:<PASSWORD>@<HOST>:4000/<DB>?ssl_verify_cert=true&ssl_verify_identity=true'
 
 tidb_vs = TiDBVectorClient(
     # the table which will store the vector data
