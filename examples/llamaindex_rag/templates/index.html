@@ -103,7 +103,7 @@
         <input type="text" v-model="question" placeholder="Input question...">
         <button :disabled="loading" @click="askQuestion">Ask</button>
         <div id="responses" style="position: relative;">
-            <div v-if="loading" class="loading-overlay">
+            <div v-if="loading && responses == ''" class="loading-overlay">
                 <div class="loading-spinner"></div>
             </div>
             <div v-html="responses"></div>
