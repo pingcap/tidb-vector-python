@@ -18,7 +18,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger()
 
 
-logger.info(f"Initializing TiDB Vector Store....")
+logger.info("Initializing TiDB Vector Store....")
 tidb_connection_url = URL(
     "mysql+pymysql",
     username=os.environ['TIDB_USERNAME'],
@@ -38,7 +38,7 @@ tidbvec = TiDBVectorStore(
 tidb_vec_index = VectorStoreIndex.from_vector_store(tidbvec)
 storage_context = StorageContext.from_defaults(vector_store=tidbvec)
 query_engine = tidb_vec_index.as_query_engine(streaming=True)
-logger.info(f"TiDB Vector Store initialized successfully")
+logger.info("TiDB Vector Store initialized successfully")
 
 
 def do_prepare_data():
