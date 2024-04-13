@@ -81,10 +81,12 @@ def cli():
 
 
 @cli.command()
+@click.option('--host', default='127.0.0.1', help="Host, default=127.0.0.1")
+@click.option('--port', default=3000, help="Port, default=3000")
 @click.option('--reload', is_flag=True, help="Enable auto-reload")
-def runserver(reload):
+def runserver(host, port, reload):
     uvicorn.run(
-        "__main__:app", host="0.0.0.0", port=8000, reload=reload,
+        "__main__:app", host=host or "127.0.0.1", port=port or 8000, reload=reload,
         log_level="debug", workers=1,
     )
 
