@@ -40,10 +40,10 @@ export TIDB_PASSWORD="****"
 
 ```bash
 # prepare the data
-python example.py prepare
+python app.py prepare
 
 # runserver
-python example.py runserver
+python app.py runserver
 ```
 
-Now you can visit [http://127.0.0.1:8000/](http://127.0.0.1:8000/) to interact with the RAG application.
+Now you can visit [http://127.0.0.1:3000/](http://127.0.0.1:3000/) to interact with the RAG application.
