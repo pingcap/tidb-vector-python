@@ -6,26 +6,32 @@
   <meta charset="UTF-8">
   <title>LlamaIndex & TiDB RAG Demo</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
   <script src="https://unpkg.com/marked@0.3.6"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
 </head>
 
 <body>
-  <div class="flex justify-center py-10 h-svh">
-    <div id="app" class="w-1/2">
+  <div id="app" class="flex justify-around p-10 min-h-screen">
+    <div class="w-1/2 m-4">
       <label class="block">
         <input type="text" v-model="question" placeholder="Input question..."
-          class="block p-2 w-full border-solid border-gray-300 focus:border-gray-900 border rounded-none focus:outline-none">
+          class="block p-2 w-full border-solid border-gray-600 focus:border-gray-900 border rounded-none focus:outline-none">
       </label>
       <button type="button" class="bg-black block w-full my-2 p-2 rounded	text-white" :disabled="loading"
         @click="askQuestion">
-        <i v-if="loading && responses == ''" class="fas fa-spinner animate-spin"></i>
+        <i v-if="loading && answer == ''" class="fas fa-spinner animate-spin"></i>
         Ask
       </button>
-      <div id="responses" class="w-full min-h-max border py-2 px-6">
+      <div id="answer" class="w-full min-h-max border py-2 px-6 bg-slate-100">
         <div v-html="compiledMarkdown">Empty</div>
       </div>
+    </div>
+    <div class="w-1/2 m-4 border p-2 bg-slate-100 min-h-fit">
+      <h1>Source Nodes</h1>
+      <ul v-for="node in responseMeta.source_nodes" class="list-decimal	ml-4">
+        <li v-text="node.node.text" class="pl-4"></li>
+      </ul>
     </div>
   </div>
   <script>
@@ -33,12 +39,30 @@
       el: '#app',
       data: {
         question: 'What did the author do at each stage of his/her growth? Use markdown format if possible',
-        responses: 'Empty...',
-        loading: false
+        answer: 'Empty...',
+        requestID: '',
+        loading: false,
+        responseMeta: {},
       },
       computed: {
         compiledMarkdown: function () {
-          return marked(this.responses, { sanitize: true });
+          return marked(this.answer, { sanitize: true });
+        }
+      },
+      watch: {
+        loading(newVal, oldVal) {
+          if (!newVal) {
+            const self = this;
+            fetch(`/getResponseMeta/${self.requestID}`)
+              .then(r => r.json())
+              .then(meta => {
+                self.responseMeta = meta;
+              })
+              .catch(error => {
+                console.error('Fetch error:', error);
+                alert('An error occurred while fetching the response.');
+              });
+          }
         }
       },
       methods: {
@@ -48,7 +72,8 @@
             alert('Please input a question.');
             return;
           }
-          self.responses = '';
+          self.responseMeta = {};
+          self.answer = '';
           self.loading = true;
           fetch(`/ask?q=${encodeURIComponent(this.question)}`)
             .then(response => {
@@ -63,7 +88,7 @@
                         return;
                       }
                       const chunk = new TextDecoder("utf-8").decode(value);
-                      self.responses += chunk;
+                      self.answer += chunk;
                       controller.enqueue(value);
                       push();
                     }).catch(error => {
@@ -75,6 +100,7 @@
                   push();
                 }
               });
+              self.requestID = response.headers.get('X-Request-ID');
               return new Response(stream);
             })
             .catch(error => {
