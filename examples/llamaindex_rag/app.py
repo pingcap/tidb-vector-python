@@ -86,7 +86,7 @@ def cli():
 @click.option('--reload', is_flag=True, help="Enable auto-reload")
 def runserver(host, port, reload):
     uvicorn.run(
-        "__main__:app", host=host or "127.0.0.1", port=port or 8000, reload=reload,
+        "__main__:app", host=host, port=port, reload=reload,
         log_level="debug", workers=1,
     )
 
