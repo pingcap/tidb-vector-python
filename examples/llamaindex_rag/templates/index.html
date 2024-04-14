@@ -12,7 +12,7 @@
 </head>
 
 <body>
-  <div id="app" class="flex justify-around p-10 h-svh">
+  <div id="app" class="flex justify-around p-10 min-h-screen">
     <div class="w-1/2 m-4">
       <label class="block">
         <input type="text" v-model="question" placeholder="Input question..."
@@ -27,7 +27,7 @@
         <div v-html="compiledMarkdown">Empty</div>
       </div>
     </div>
-    <div class="w-1/2 m-4 border p-2 bg-slate-100">
+    <div class="w-1/2 m-4 border p-2 bg-slate-100 min-h-fit">
       <h1>Source Nodes</h1>
       <ul v-for="node in responseMeta.source_nodes" class="list-decimal	ml-4">
         <li v-text="node.node.text" class="pl-4"></li>
