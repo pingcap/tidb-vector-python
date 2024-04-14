@@ -12,7 +12,7 @@
 </head>
 
 <body>
-  <div class="flex justify-center py-40">
+  <div class="flex justify-center py-10 h-svh">
     <div id="app" class="w-1/2">
       <label class="block">
         <input type="text" v-model="question" placeholder="Input question..."
@@ -23,7 +23,7 @@
         <i v-if="loading && responses == ''" class="fas fa-spinner animate-spin"></i>
         Ask
       </button>
-      <div id="responses" class="w-full min-h-full border py-2 px-6">
+      <div id="responses" class="w-full min-h-max border py-2 px-6">
         <div v-html="compiledMarkdown">Empty</div>
       </div>
     </div>
