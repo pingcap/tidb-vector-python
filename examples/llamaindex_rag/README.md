@@ -10,9 +10,16 @@ This example demonstrates how to use the LlamaIndex and TiDB Serverless to build
 
 ## Run the example
 
+### Clone this repo
+
+```bash
+git clone https://github.com/pingcap/tidb-vector-python.git
+```
+
 ### Create a virtual environment
 
 ```bash
+cd tidb-vector-python/examples/llamaindex_rag
 python3 -m venv .venv
 source .venv/bin/activate
 ```
