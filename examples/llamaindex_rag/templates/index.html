@@ -13,22 +13,27 @@
 
 <body>
   <div id="app" class="flex justify-around p-10 min-h-screen">
-    <div class="w-1/2 m-4">
-      <label class="block">
-        <input type="text" v-model="question" placeholder="Input question..."
-          class="block p-2 w-full border-solid border-gray-600 focus:border-gray-900 border rounded-none focus:outline-none">
-      </label>
-      <button type="button" class="bg-black block w-full my-2 p-2 rounded	text-white" :disabled="loading"
-        @click="askQuestion">
-        <i v-if="loading && answer == ''" class="fas fa-spinner animate-spin"></i>
-        Ask
-      </button>
-      <div id="answer" class="w-full min-h-max border py-2 px-6 bg-slate-100">
+    <div class="w-1/2">
+      <div class="flex justify-between">
+        <label class="block w-4/5">
+          <input type="text" v-model="question" placeholder="Input question..."
+            class="p-2 w-full border-solid border-gray-600 focus:border-gray-900 border rounded-none focus:outline-none">
+        </label>
+        <button type="button" class="bg-black ml-2 w-1/5 p-2 rounded	text-white" :disabled="loading"
+          @click="askQuestion">
+          <i v-if="loading && answer == ''" class="fas fa-spinner animate-spin"></i>
+          Ask
+        </button>
+      </div>
+      <div id="answer" class="w-full min-h-max border py-2 px-6 mt-6 bg-slate-100">
+        <h1 class="text-center">Answer</h1>
+        <hr class="my-2" />
         <div v-html="compiledMarkdown">Empty</div>
       </div>
     </div>
-    <div class="w-1/2 m-4 border p-2 bg-slate-100 min-h-fit">
-      <h1>Source Nodes</h1>
+    <div class="w-1/2 ml-4 border p-2 bg-slate-100 min-h-fit">
+      <h1 class="text-center">Source Nodes</h1>
+      <hr class="my-2" />
       <ul v-for="node in responseMeta.source_nodes" class="list-decimal	ml-4">
         <li v-text="node.node.text" class="pl-4"></li>
       </ul>
