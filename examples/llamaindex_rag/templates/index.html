@@ -16,18 +16,18 @@
     <div class="w-1/2 m-4">
       <label class="block">
         <input type="text" v-model="question" placeholder="Input question..."
-          class="block p-2 w-full border-solid border-gray-300 focus:border-gray-900 border rounded-none focus:outline-none">
+          class="block p-2 w-full border-solid border-gray-600 focus:border-gray-900 border rounded-none focus:outline-none">
       </label>
       <button type="button" class="bg-black block w-full my-2 p-2 rounded	text-white" :disabled="loading"
         @click="askQuestion">
         <i v-if="loading && answer == ''" class="fas fa-spinner animate-spin"></i>
         Ask
       </button>
-      <div id="answer" class="w-full min-h-max border py-2 px-6">
+      <div id="answer" class="w-full min-h-max border py-2 px-6 bg-slate-100">
         <div v-html="compiledMarkdown">Empty</div>
       </div>
     </div>
-    <div class="w-1/2 m-4 border p-2">
+    <div class="w-1/2 m-4 border p-2 bg-slate-100">
       <h1>Source Nodes</h1>
       <ul v-for="node in responseMeta.source_nodes" class="list-decimal	ml-4">
         <li v-text="node.node.text" class="pl-4"></li>
@@ -72,6 +72,7 @@
             alert('Please input a question.');
             return;
           }
+          self.responseMeta = {};
           self.answer = '';
           self.loading = true;
           fetch(`/ask?q=${encodeURIComponent(this.question)}`)
