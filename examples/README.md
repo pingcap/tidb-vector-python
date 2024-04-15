@@ -27,7 +27,7 @@ Please make sure you have created a TiDB Serverless cluster with vector support 
 
 - [OpenAI Embedding](./openai_embedding/README.md): use the OpenAI embedding model to generate vectors for text data.
 - [Image Search](./image_search/README.md): use the OpenAI CLIP model to generate vectors for image and text.
-- [LlamaIndex RAG](./llamaindex_rag/README.md): use the LlamaIndex to build an [RAG(Retrieval-Augmented Generation)](https://docs.llamaindex.ai/en/latest/getting_started/concepts/) application.
+- [LlamaIndex RAG](./llamaindex-tidb-vector-with-ui/README.md): use the LlamaIndex to build an [RAG(Retrieval-Augmented Generation)](https://docs.llamaindex.ai/en/latest/getting_started/concepts/) application.
 
 ## Real World Applications
 
