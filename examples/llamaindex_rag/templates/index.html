@@ -35,7 +35,7 @@
       <h1 class="text-center">Chunks Retrieved</h1>
       <hr class="my-2" />
       <ul v-for="node in source_nodes" class="list-decimal ml-4">
-        <li class="pl-4">{{ node }}</li>
+        <li class="pl-4" v-text="node.node"></li>
       </ul>
     </div>
   </div>
