@@ -26,16 +26,16 @@
         </button>
       </div>
       <div id="answer" class="w-full min-h-max border py-2 px-6 mt-6 bg-slate-100">
-        <h1 class="text-center">Answer</h1>
+        <h1 class="text-center">Answer Body</h1>
         <hr class="my-2" />
         <div v-html="compiledMarkdown">Empty</div>
       </div>
     </div>
     <div class="w-1/2 ml-4 border p-2 bg-slate-100 min-h-fit">
-      <h1 class="text-center">Source Nodes</h1>
+      <h1 class="text-center">Chunks Retrieved</h1>
       <hr class="my-2" />
-      <ul v-for="node in responseMeta.source_nodes" class="list-decimal	ml-4">
-        <li v-text="node.node.text" class="pl-4"></li>
+      <ul v-for="node in source_nodes" class="list-decimal ml-4">
+        <li class="pl-4">{{ node }}</li>
       </ul>
     </div>
   </div>
@@ -47,27 +47,16 @@
         answer: 'Empty...',
         requestID: '',
         loading: false,
-        responseMeta: {},
+        source_nodes: [],
       },
       computed: {
         compiledMarkdown: function () {
           return marked(this.answer, { sanitize: true });
         }
       },
-      watch: {
-        loading(newVal, oldVal) {
-          if (!newVal) {
-            const self = this;
-            fetch(`/getResponseMeta/${self.requestID}`)
-              .then(r => r.json())
-              .then(meta => {
-                self.responseMeta = meta;
-              })
-              .catch(error => {
-                console.error('Fetch error:', error);
-                alert('An error occurred while fetching the response.');
-              });
-          }
+      filters: {
+        pretty: function(value) {
+          return JSON.stringify(JSON.parse(value), null, 2);
         }
       },
       methods: {
@@ -77,7 +66,7 @@
             alert('Please input a question.');
             return;
           }
-          self.responseMeta = {};
+          self.source_nodes = [];
           self.answer = '';
           self.loading = true;
           fetch(`/ask?q=${encodeURIComponent(this.question)}`)
@@ -93,7 +82,14 @@
                         return;
                       }
                       const chunk = new TextDecoder("utf-8").decode(value);
-                      self.answer += chunk;
+                      if (chunk.startsWith('1:')) {
+                        const meta = chunk.substring(2);
+                        console.log('Meta:', meta);
+                        self.source_nodes = JSON.parse(meta);
+                      }
+                      if (chunk.startsWith('2:')) {
+                        self.answer += chunk.substring(2);
+                      }
                       controller.enqueue(value);
                       push();
                     }).catch(error => {
