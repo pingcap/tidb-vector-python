@@ -19,7 +19,7 @@ git clone https://github.com/pingcap/tidb-vector-python.git
 ### Create a virtual environment
 
 ```bash
-cd tidb-vector-python/examples/llamaindex_rag
+cd tidb-vector-python/examples/llamaindex-tidb-vector-with-ui
 python3 -m venv .venv
 source .venv/bin/activate
 ```

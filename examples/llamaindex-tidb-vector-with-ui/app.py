@@ -1,15 +1,15 @@
 import os
 import sys
-import uuid
+import json
 import logging
 import click
 import uvicorn
 import fastapi
 import asyncio
-import contextvars
+from enum import Enum
 from sqlalchemy import URL
-from fastapi.responses import StreamingResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import StreamingResponse, HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from llama_index.core import VectorStoreIndex, StorageContext
 from llama_index.core.base.response.schema import StreamingResponse as llamaStreamingResponse
@@ -17,29 +17,13 @@ from llama_index.vector_stores.tidbvector import TiDBVectorStore
 from llama_index.readers.web import SimpleWebPageReader
 
 
-# Setup logging
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger()
 
-# Setup in-memory cache
-class InMemoryCache:
-    def __init__(self):
-        self.cache = {}
 
-    def set(self, key, value):
-        self.cache[key] = value
-
-    def get(self, key):
-        return self.cache.get(key)
-
-    def delete(self, key):
-        if key in self.cache:
-            del self.cache[key]
-
-    def clear(self):
-        self.cache.clear()
-
-cache = InMemoryCache()
+class EventType(Enum):
+    META = 1
+    ANSWER = 2
 
 
 logger.info("Initializing TiDB Vector Store....")
@@ -56,7 +40,7 @@ tidbvec = TiDBVectorStore(
     connection_string=tidb_connection_url,
     table_name="llama_index_rag_test",
     distance_strategy="cosine",
-    vector_dimension=1536,
+    vector_dimension=1536, # Length of the vectors returned by the model
     drop_existing_table=False,
 )
 tidb_vec_index = VectorStoreIndex.from_vector_store(tidbvec)
@@ -77,8 +61,10 @@ def do_prepare_data():
 # https://stackoverflow.com/questions/76288582/is-there-a-way-to-stream-output-in-fastapi-from-the-response-i-get-from-llama-in
 async def astreamer(response: llamaStreamingResponse):
     try:
+        meta = json.dumps(jsonable_encoder(list(vars(node) for node in response.source_nodes)))
+        yield f'{EventType.META.value}: {meta}\n\n'
         for i in response.response_gen:
-            yield (i)
+            yield f'{EventType.ANSWER.value}: {i}\n\n'
             await asyncio.sleep(.1)
     except asyncio.CancelledError as e:
         print('cancelled')
@@ -86,17 +72,6 @@ async def astreamer(response: llamaStreamingResponse):
 
 app = fastapi.FastAPI()
 templates = Jinja2Templates(directory="templates")
-
-# Setup contextvars
-request_id_contextvar = contextvars.ContextVar('request_id', default=None)
-
-@app.middleware("http")
-async def add_request_id_header(request: fastapi.Request, call_next):
-    request_id = str(uuid.uuid4())
-    request_id_contextvar.set(request_id)
-    response = await call_next(request)
-    response.headers["X-Request-ID"] = request_id
-    return response
 
 
 @app.get('/', response_class=HTMLResponse)
@@ -107,14 +82,8 @@ def index(request: fastapi.Request):
 @app.get('/ask')
 async def ask(q: str):
     response = query_engine.query(q)
-    request_id = request_id_contextvar.get()
-    cache.set(request_id, vars(response))
+    print(response.source_nodes)
     return StreamingResponse(astreamer(response), media_type='text/event-stream')
-
-
-@app.get('/getResponseMeta/{request_id}')
-async def response(request_id: str):
-    return cache.get(request_id)
 
 
 @click.group(context_settings={'max_content_width': 150})
@@ -125,7 +94,7 @@ def cli():
 @cli.command()
 @click.option('--host', default='127.0.0.1', help="Host, default=127.0.0.1")
 @click.option('--port', default=3000, help="Port, default=3000")
-@click.option('--reload', is_flag=True, default=True, help="Enable auto-reload")
+@click.option('--reload', is_flag=True, help="Enable auto-reload")
 def runserver(host, port, reload):
     uvicorn.run(
         "__main__:app", host=host, port=port, reload=reload,
