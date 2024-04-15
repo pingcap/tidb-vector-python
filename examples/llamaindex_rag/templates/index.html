@@ -35,7 +35,7 @@
       <h1 class="text-center">Chunks Retrieved</h1>
       <hr class="my-2" />
       <ul v-for="node in source_nodes" class="list-decimal ml-4">
-        <li class="pl-4" v-text="node.node"></li>
+        <li class="pl-4" v-text="node.node.text"></li>
       </ul>
     </div>
   </div>
@@ -55,7 +55,7 @@
         }
       },
       filters: {
-        pretty: function(value) {
+        pretty: function (value) {
           return JSON.stringify(JSON.parse(value), null, 2);
         }
       },
@@ -81,15 +81,22 @@
                         self.loading = false;
                         return;
                       }
-                      const chunk = new TextDecoder("utf-8").decode(value);
-                      if (chunk.startsWith('1:')) {
-                        const meta = chunk.substring(2);
-                        console.log('Meta:', meta);
-                        self.source_nodes = JSON.parse(meta);
-                      }
-                      if (chunk.startsWith('2:')) {
-                        self.answer += chunk.substring(2);
-                      }
+                      const chunkValue = new TextDecoder("utf-8").decode(value);
+                      chunkValue
+                        .split('\n\n')
+                        .forEach(chunk => {
+                          if (chunk.startsWith('1: ')) {
+                            const meta = chunk.substring(3);
+                            console.log('Meta:', meta);
+                            self.source_nodes = JSON.parse(chunk.replace('1: ', ''));
+                            console.log(self.source_nodes)
+                          } else {
+                            const data = chunk.replace('2: ', '');
+                            if (data) {
+                              self.answer += data;
+                            }
+                          }
+                        });
                       controller.enqueue(value);
                       push();
                     }).catch(error => {

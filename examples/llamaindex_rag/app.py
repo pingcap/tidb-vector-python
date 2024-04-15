@@ -62,9 +62,9 @@ def do_prepare_data():
 async def astreamer(response: llamaStreamingResponse):
     try:
         meta = json.dumps(jsonable_encoder(list(vars(node) for node in response.source_nodes)))
-        yield f'{EventType.META.value}:{meta}'
+        yield f'{EventType.META.value}: {meta}\n\n'
         for i in response.response_gen:
-            yield f'{EventType.ANSWER.value}:{i}'
+            yield f'{EventType.ANSWER.value}: {i}\n\n'
             await asyncio.sleep(.1)
     except asyncio.CancelledError as e:
         print('cancelled')
@@ -82,6 +82,7 @@ def index(request: fastapi.Request):
 @app.get('/ask')
 async def ask(q: str):
     response = query_engine.query(q)
+    print(response.source_nodes)
     return StreamingResponse(astreamer(response), media_type='text/event-stream')
 
 
