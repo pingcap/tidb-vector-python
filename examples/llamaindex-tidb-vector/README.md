@@ -1,6 +1,6 @@
-# LlamaIndex RAG Example with Simple UI
+# LlamaIndex RAG Example
 
-This example demonstrates how to use the LlamaIndex and TiDB Serverless to build a simple RAG(Retrival-Augmented Generation) application with simple UI.
+This example demonstrates how to use the LlamaIndex and TiDB Serverless to build a simple RAG(Retrival-Augmented Generation) application. It crawl an example webpage and index the content to TiDB Serverless with LlamaIndex, then use the LlamaIndex to search the content and generate the answer with OpenAI.
 
 ## Prerequisites
 
@@ -19,7 +19,7 @@ git clone https://github.com/pingcap/tidb-vector-python.git
 ### Create a virtual environment
 
 ```bash
-cd tidb-vector-python/examples/llamaindex-tidb-vector-with-ui
+cd tidb-vector-python/examples/llamaindex-tidb-vector
 python3 -m venv .venv
 source .venv/bin/activate
 ```
@@ -43,14 +43,8 @@ export TIDB_USERNAME="****.root"
 export TIDB_PASSWORD="****"
 ```
 
-### Prepare data and run the server
+### Run this example
 
 ```bash
-# prepare the data
-python app.py prepare
-
-# runserver
-python app.py runserver
+python app.py
 ```
-
-Now you can visit [http://127.0.0.1:3000/](http://127.0.0.1:3000/) to interact with the RAG application.
