@@ -1,4 +1,4 @@
-click-shell==2.1
+click==8.1.7
 llama-index==0.10.29
 llama-index-readers-web==0.1.8
 llama-index-vector-stores-tidbvector==0.1.2

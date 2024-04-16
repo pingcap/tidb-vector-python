@@ -2,7 +2,6 @@
 import os
 
 import click
-from click_shell import shell
 from sqlalchemy import URL
 from llama_index.core import VectorStoreIndex, StorageContext
 from llama_index.vector_stores.tidbvector import TiDBVectorStore # type: ignore
