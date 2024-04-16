@@ -21,7 +21,7 @@ tidbvec = TiDBVectorStore(
     connection_string=tidb_connection_url,
     table_name="llama_index_rag_test",
     distance_strategy="cosine",
-    vector_dimension=1536, # Length of the vectors returned by the model
+    vector_dimension=1536, # The dimension is decided by the model
     drop_existing_table=False,
 )
 tidb_vec_index = VectorStoreIndex.from_vector_store(tidbvec)
