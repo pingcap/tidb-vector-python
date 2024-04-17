@@ -27,10 +27,13 @@ Please make sure you have created a TiDB Serverless cluster with vector support 
 
 - [OpenAI Embedding](./openai_embedding/README.md): use the OpenAI embedding model to generate vectors for text data.
 - [Image Search](./image_search/README.md): use the OpenAI CLIP model to generate vectors for image and text.
-- [LlamaIndex RAG](./llamaindex-tidb-vector-with-ui/README.md): use the LlamaIndex to build an [RAG(Retrieval-Augmented Generation)](https://docs.llamaindex.ai/en/latest/getting_started/concepts/) application.
+- [LlamaIndex RAG with UI](./llamaindex-tidb-vector-with-ui/README.md): use the LlamaIndex to build an [RAG(Retrieval-Augmented Generation)](https://docs.llamaindex.ai/en/latest/getting_started/concepts/) application.
+- [Chat with URL](./llamaindex-tidb-vector/README.md): use LlamaIndex to build an [RAG(Retrieval-Augmented Generation)](https://docs.llamaindex.ai/en/latest/getting_started/concepts/) application that can chat with a URL.
 
 ## Real World Applications
 
 ### tidb.ai
 
 [tidb.ai](https://tidb.ai) is an amazing out-of-the-box RAG(Retrieval Augmented Generation) template project based on the TiDB Vector store, it contains ui and server logic, fork it on [github](https://github.com/pingcap/tidb.ai) and build your own application.
+
+![out-of-box-conversational-search](https://github.com/pingcap/tidb.ai/assets/1237528/0784e26e-8392-4bbe-bda1-6a680b12a805 "Image Title")
