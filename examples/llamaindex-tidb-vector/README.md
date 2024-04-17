@@ -55,7 +55,7 @@ Options:
   --help      Show this message and exit.
 $
 $ python chat_with_url.py
-Enter your question: : tidb vs mysql
+Enter your question: tidb vs mysql
 TiDB is an open-source distributed SQL database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads. It is MySQL compatible and features horizontal scalability, strong consistency, and high availability. TiDB is designed to provide users with a one-stop database solution that covers OLTP, OLAP, and HTAP services. It offers easy horizontal scaling, financial-grade high availability, real-time HTAP capabilities, cloud-native features, and compatibility with the MySQL protocol and ecosystem.
-Enter your question: :
+Enter your question:
 ```
