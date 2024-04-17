@@ -39,7 +39,7 @@ _default_url = 'https://docs.pingcap.com/tidb/stable/overview'
 @click.command()
 @click.option('--url',default=_default_url,
               help=f'URL you want to talk to, default={_default_url}')
-def talk_to(url):
+def chat_with_url(url):
     do_prepare_data(url)
     while True:
         question = click.prompt("Enter your question: ")
@@ -47,4 +47,4 @@ def talk_to(url):
         click.echo(response)
 
 if __name__ == '__main__':
-    talk_to()
+    chat_with_url()
