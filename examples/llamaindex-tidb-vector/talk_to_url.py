@@ -29,16 +29,22 @@ storage_context = StorageContext.from_defaults(vector_store=tidbvec)
 query_engine = tidb_vec_index.as_query_engine(streaming=True)
 
 
-def do_prepare_data():
-    documents = SimpleWebPageReader(html_to_text=True).load_data(
-        ["http://paulgraham.com/worked.html"]
-    )
+def do_prepare_data(url):
+    documents = SimpleWebPageReader(html_to_text=True).load_data([url,])
     tidb_vec_index.from_documents(documents, storage_context=storage_context, show_progress=True)
 
 
-if __name__ == '__main__':
-    do_prepare_data()
+_default_url = 'https://docs.pingcap.com/tidb/stable/overview'
+
+@click.command()
+@click.option('--url',default=_default_url,
+              help=f'URL you want to talk to, default={_default_url}')
+def talk_to(url):
+    do_prepare_data(url)
     while True:
         question = click.prompt("Enter your question: ")
         response = query_engine.query(question)
         click.echo(response)
+
+if __name__ == '__main__':
+    talk_to()

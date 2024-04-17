@@ -45,6 +45,17 @@ export TIDB_PASSWORD="****"
 
 ### Run this example
 
-```bash
-python app.py
+```text
+$ python talk_to_url.py --help
+Usage: talk_to_url.py [OPTIONS]
+
+Options:
+  --url TEXT  URL you want to talk to,
+              default=https://docs.pingcap.com/tidb/stable/overview
+  --help      Show this message and exit.
+$
+$ python talk_to_url.py
+Enter your question: : tidb vs mysql
+TiDB is an open-source distributed SQL database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads. It is MySQL compatible and features horizontal scalability, strong consistency, and high availability. TiDB is designed to provide users with a one-stop database solution that covers OLTP, OLAP, and HTAP services. It offers easy horizontal scaling, financial-grade high availability, real-time HTAP capabilities, cloud-native features, and compatibility with the MySQL protocol and ecosystem.
+Enter your question: :
 ```
