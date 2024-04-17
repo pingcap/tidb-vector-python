@@ -1,6 +1,6 @@
-# LlamaIndex RAG Example
+# LlamaIndex RAG Example with Simple UI
 
-This example demonstrates how to use the LlamaIndex and TiDB Serverless to build a simple RAG(Retrival-Augmented Generation) application.
+This example demonstrates how to use the LlamaIndex and TiDB Serverless to build a simple RAG(Retrival-Augmented Generation) application with simple UI.
 
 ## Prerequisites
 

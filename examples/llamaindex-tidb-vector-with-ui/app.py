@@ -82,7 +82,6 @@ def index(request: fastapi.Request):
 @app.get('/ask')
 async def ask(q: str):
     response = query_engine.query(q)
-    print(response.source_nodes)
     return StreamingResponse(astreamer(response), media_type='text/event-stream')
 
 

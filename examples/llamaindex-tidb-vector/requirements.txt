@@ -1,0 +1,5 @@
+click==8.1.7
+SQLAlchemy==2.0.29
+llama-index==0.10.29
+llama-index-readers-web==0.1.8
+llama-index-vector-stores-tidbvector==0.1.2
