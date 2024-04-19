@@ -19,7 +19,9 @@ TiDB vector supports below distance functions:
 - `CosineDistance`
 - `NegativeInnerProduct`
 
-supports following orm or framework:
+It also supports using hnsw index with l2 or cosine distance to speed up the search, for more details see [Vector Search Indexes in TiDB](https://docs.google.com/document/d/15eAO0xrvEd6_tTxW_zEko4CECwnnSwQg8GGrqK1Caiw)
+
+Supports following orm or framework:
 
 - [SQLAlchemy](#sqlalchemy)
 - [Django](#django)
@@ -33,16 +35,25 @@ Learn how to connect to TiDB Serverless in the [TiDB Cloud documentation](https:
 Define table with vector field
 
 ```python
-from sqlalchemy import Column, Integer
+from sqlalchemy import Column, Integer, create_engine
 from sqlalchemy.orm import declarative_base
 from tidb_vector.sqlalchemy import VectorType
 
+engine = create_engine('mysql://****.root:******@gateway01.xxxxxx.shared.aws.tidbcloud.com:4000/test')
 Base = declarative_base()
 
 class Test(Base):
     __tablename__ = 'test'
     id = Column(Integer, primary_key=True)
     embedding = Column(VectorType(3))
+
+# or add hnsw index when creating table
+class TestWithIndex(Base):
+    __tablename__ = 'test_with_index'
+    id = Column(Integer, primary_key=True)
+    embedding = Column(VectorType(3), comment="hnsw(distance=l2)")
+
+Base.metadata.create_all(engine)
 ```
 
 Insert vector data
@@ -114,6 +125,18 @@ class TestModel(Model):
         table_name = 'test'
 
     embedding = VectorField(3)
+
+# or add hnsw index when creating table
+class TestModelWithIndex(Model):
+    class Meta:
+        database = db
+        table_name = 'test_with_index'
+
+    embedding = VectorField(3, constraints=[SQL("COMMENT 'hnsw(distance=l2)'")])
+
+
+db.connect()
+db.create_tables([TestModel, TestModelWithIndex])
 ```
 
 Insert vector data
@@ -211,3 +234,7 @@ tidb_vs.delete(["f8e7dee2-63b6-42f1-8b60-2d46710c1971"])
 # delete with filter
 tidb_vs.delete(["f8e7dee2-63b6-42f1-8b60-2d46710c1971"], filter={"category": "P1"})
 ```
+
+## Examples
+
+Examples can be found in the [examples](./examples) directory.
