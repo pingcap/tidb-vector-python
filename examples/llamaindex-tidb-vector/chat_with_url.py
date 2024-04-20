@@ -42,7 +42,7 @@ _default_url = 'https://docs.pingcap.com/tidb/stable/overview'
 def chat_with_url(url):
     do_prepare_data(url)
     while True:
-        question = click.prompt("Enter your question: ")
+        question = click.prompt("Enter your question")
         response = query_engine.query(question)
         click.echo(response)
 
