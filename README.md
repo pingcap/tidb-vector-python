@@ -237,4 +237,10 @@ tidb_vs.delete(["f8e7dee2-63b6-42f1-8b60-2d46710c1971"], filter={"category": "P1
 
 ## Examples
 
-Examples can be found in the [examples](./examples) directory.
+There are some examples to show how to use the tidb-vector-python to interact with TiDB Vector in different scenarios.
+
+- [OpenAI Embedding](./examples/openai_embedding/README.md): use the OpenAI embedding model to generate vectors for text data, store them in TiDB Vector, and search for similar text.
+- [Image Search](./examples/image_search/README.md): use the OpenAI CLIP model to generate vectors for image and text, store them in TiDB Vector, and search for similar images.
+- [LlamaIndex RAG with UI](./examples/llamaindex-tidb-vector-with-ui/README.md): use the LlamaIndex to build an [RAG(Retrieval-Augmented Generation)](https://docs.llamaindex.ai/en/latest/getting_started/concepts/) application.
+
+for more examples, see the [examples](./examples) directory.
