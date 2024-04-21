@@ -21,9 +21,9 @@ class EmbeddingColumnMismatchError(ValueError):
 
 
 def check_table_existence(
-    connection_string: str,
-    table_name: str,
-    engine_args: Optional[Dict[str, Any]] = None,
+        connection_string: str,
+        table_name: str,
+        engine_args: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """
     Check if the vector table exists in the database
@@ -44,7 +44,12 @@ def check_table_existence(
         engine.dispose()
 
 
-def get_embedding_column_definition(connection_string, table_name, column_name):
+def get_embedding_column_definition(
+        connection_string: str,
+        table_name: str,
+        column_name: str,
+        engine_args: Optional[Dict[str, Any]] = None,
+):
     """
     Retrieves the column definition of an embedding column from a database table.
 
@@ -52,11 +57,12 @@ def get_embedding_column_definition(connection_string, table_name, column_name):
         connection_string (str): The connection string to the database.
         table_name (str): The name of the table.
         column_name (str): The name of the column.
+        engine_args (Optional[Dict[str, Any]]): Additional arguments for the engine.
 
     Returns:
         tuple: A tuple containing the dimension (int or None) and distance metric (str or None).
     """
-    engine = sqlalchemy.create_engine(connection_string)
+    engine = sqlalchemy.create_engine(connection_string, **(engine_args or {}))
     try:
         with engine.connect() as connection:
             query = f"""SELECT COLUMN_TYPE, COLUMN_COMMENT
