@@ -25,9 +25,9 @@ class DistanceStrategy(str, enum.Enum):
 
 
 def _create_vector_table_model(
-        table_name: str,
-        dim: Optional[int] = None,
-        distance: Optional[DistanceStrategy] = None,
+    table_name: str,
+    dim: Optional[int] = None,
+    distance: Optional[DistanceStrategy] = None,
 ) -> Tuple[Type[declarative_base], Type]:
     """Create a vector model class."""
 
@@ -76,15 +76,15 @@ class QueryResult:
 
 class TiDBVectorClient:
     def __init__(
-            self,
-            connection_string: str,
-            table_name: str,
-            distance_strategy: Optional[DistanceStrategy] = None,
-            vector_dimension: Optional[int] = None,
-            *,
-            engine_args: Optional[Dict[str, Any]] = None,
-            drop_existing_table: bool = False,
-            **kwargs: Any,
+        self,
+        connection_string: str,
+        table_name: str,
+        distance_strategy: Optional[DistanceStrategy] = None,
+        vector_dimension: Optional[int] = None,
+        *,
+        engine_args: Optional[Dict[str, Any]] = None,
+        drop_existing_table: bool = False,
+        **kwargs: Any,
     ) -> None:
         """
         Initializes a vector client in a specified table within a TiDB database.
@@ -200,12 +200,12 @@ class TiDBVectorClient:
             )
 
     def insert(
-            self,
-            texts: Iterable[str],
-            embeddings: Iterable[List[float]],
-            metadatas: Optional[List[dict]] = None,
-            ids: Optional[List[str]] = None,
-            **kwargs: Any,
+        self,
+        texts: Iterable[str],
+        embeddings: Iterable[List[float]],
+        metadatas: Optional[List[dict]] = None,
+        ids: Optional[List[str]] = None,
+        **kwargs: Any,
     ) -> List[str]:
         """
         Add texts to TiDB Vector.
@@ -239,10 +239,10 @@ class TiDBVectorClient:
         return ids
 
     def delete(
-            self,
-            ids: Optional[List[str]] = None,
-            filter: Optional[dict] = None,
-            **kwargs: Any,
+        self,
+        ids: Optional[List[str]] = None,
+        filter: Optional[dict] = None,
+        **kwargs: Any,
     ) -> None:
         """
         Delete vector data from the TiDB vector.
@@ -260,11 +260,11 @@ class TiDBVectorClient:
             session.commit()
 
     def query(
-            self,
-            query_vector: List[float],
-            k: int = 5,
-            filter: Optional[dict] = None,
-            **kwargs: Any,
+        self,
+        query_vector: List[float],
+        k: int = 5,
+        filter: Optional[dict] = None,
+        **kwargs: Any,
     ) -> List[QueryResult]:
         """
         Perform a similarity search with score based on the given query.
@@ -292,10 +292,10 @@ class TiDBVectorClient:
         ]
 
     def _vector_search(
-            self,
-            query_embedding: List[float],
-            k: int = 5,
-            filter: Optional[Dict[str, str]] = None,
+        self,
+        query_embedding: List[float],
+        k: int = 5,
+        filter: Optional[Dict[str, str]] = None,
     ) -> List[Any]:
         """vector search from table."""
 
@@ -368,8 +368,8 @@ class TiDBVectorClient:
                         filter_clauses.append(filter_by_metadata)
                 else:
                     filter_by_metadata = (
-                            sqlalchemy.func.json_extract(self._table_model.meta, f"$.{key}")
-                            == value
+                        sqlalchemy.func.json_extract(self._table_model.meta, f"$.{key}")
+                        == value
                     )
                     filter_clauses.append(filter_by_metadata)
 

@@ -21,9 +21,9 @@ class EmbeddingColumnMismatchError(ValueError):
 
 
 def check_table_existence(
-        connection_string: str,
-        table_name: str,
-        engine_args: Optional[Dict[str, Any]] = None,
+    connection_string: str,
+    table_name: str,
+    engine_args: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """
     Check if the vector table exists in the database
@@ -45,10 +45,10 @@ def check_table_existence(
 
 
 def get_embedding_column_definition(
-        connection_string: str,
-        table_name: str,
-        column_name: str,
-        engine_args: Optional[Dict[str, Any]] = None,
+    connection_string: str,
+    table_name: str,
+    column_name: str,
+    engine_args: Optional[Dict[str, Any]] = None,
 ):
     """
     Retrieves the column definition of an embedding column from a database table.
