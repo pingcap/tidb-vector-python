@@ -126,7 +126,10 @@ class TiDBVectorClient:
             return
 
         actual_dim, actual_distance_strategy = get_embedding_column_definition(
-            self.connection_string, self._table_name, "embedding"
+            connection_string=self.connection_string,
+            table_name=self._table_name,
+            column_name="embedding",
+            engine_args=self._engine_args,
         )
         if actual_dim is not None:
             # If the vector dimension is not set, set it to the actual dimension
