@@ -87,9 +87,7 @@
                         .forEach(chunk => {
                           if (chunk.startsWith('1: ')) {
                             const meta = chunk.substring(3);
-                            console.log('Meta:', meta);
                             self.source_nodes = JSON.parse(chunk.replace('1: ', ''));
-                            console.log(self.source_nodes)
                           } else {
                             const data = chunk.replace('2: ', '');
                             if (data) {
