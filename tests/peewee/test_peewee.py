@@ -48,6 +48,13 @@ class TestPeewee:
     def setup_method(self):
         Item1Model.truncate_table()
 
+    def test_empty_vector(self):
+        Item1Model.create(embedding=[])
+        assert Item1Model.select().count() == 1
+        item1 = Item1Model.get()
+        assert np.array_equal(item1.embedding, np.array([]))
+        assert item1.embedding.dtype == np.float32
+
     def test_insert_get_record(self):
         Item1Model.create(embedding=[1, 2, 3])
         assert Item1Model.select().count() == 1
