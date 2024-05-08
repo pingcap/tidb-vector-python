@@ -56,6 +56,16 @@ class TestSQLAlchemy:
             assert np.array_equal(item1.embedding, np.array([1, 2, 3]))
             assert item1.embedding.dtype == np.float32
 
+    def test_empty_vector(self):
+        with Session() as session:
+            item1 = Item1Model(embedding=[])
+            session.add(item1)
+            session.commit()
+            assert session.query(Item1Model).count() == 1
+            item1 = session.query(Item1Model).first()
+            assert np.array_equal(item1.embedding, np.array([]))
+            assert item1.embedding.dtype == np.float32
+
     def test_get_with_different_dimensions(self):
         with Session() as session:
             item1 = Item1Model(embedding=[1, 2, 3])
