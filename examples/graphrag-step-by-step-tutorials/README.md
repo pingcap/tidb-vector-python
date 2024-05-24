@@ -1,4 +1,4 @@
-# GraphRAG with 10 Lines of Core Code
+# GraphRAG Step by Step Tutorials
 
 This example demonstrates how to achieve GraphRAG using just 10 lines of core code. The steps outlined in this example guide you through setting up the environment, handling dependencies, and executing the core code to build and query a knowledge graph. Below are the main sections and steps involved in this process.
 
