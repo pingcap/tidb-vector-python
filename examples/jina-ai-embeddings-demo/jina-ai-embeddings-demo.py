@@ -1,6 +1,11 @@
 import os
 import requests
 import dotenv
+
+from sqlalchemy import Column, Integer, String, create_engine, URL
+from sqlalchemy.orm import Session, declarative_base
+from tidb_vector.sqlalchemy import VectorType
+
 dotenv.load_dotenv()
 
 JINAAI_API_KEY = os.getenv('JINAAI_API_KEY')
@@ -45,16 +50,6 @@ for text in TEXTS:
 
 
 # 2. Connect TiDB Serverless and Create Table
-from sqlalchemy import Column, Integer, String, create_engine, URL
-from sqlalchemy.orm import Session, declarative_base
-from tidb_vector.sqlalchemy import VectorType
-
-assert os.getenv("TIDB_USERNAME") is not None
-assert os.getenv("TIDB_PASSWORD") is not None
-assert os.getenv("TIDB_HOST") is not None
-assert os.getenv("TIDB_PORT") is not None
-assert os.getenv("TIDB_DATABASE") is not None
-
 url = URL(
     drivername="mysql+pymysql",
     username=TIDB_USERNAME,
