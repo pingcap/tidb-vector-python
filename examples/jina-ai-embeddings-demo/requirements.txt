@@ -1,0 +1,6 @@
+requests
+PyMySQL
+openai==1.27.0
+SQLAlchemy
+tidb-vector>=0.0.9
+python-dotenv

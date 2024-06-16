@@ -139,3 +139,5 @@ cython_debug/
 
 .idea/
 django_tests_dir
+
+*.swp
