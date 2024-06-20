@@ -47,6 +47,7 @@ def generate_embeddings(jinaai_api_key: str, text: str):
 
 class Cache(SQLModel, table=True):
     __table_args__ = {
+        # Ref: https://docs.pingcap.com/tidb/stable/time-to-live
         'mysql_TTL': f'created_at + INTERVAL {TIME_TO_LIVE} SECOND',
     }
 
@@ -76,10 +77,8 @@ SQLModel.metadata.create_all(engine)
 app = FastAPI()
 security = HTTPBearer()
 
-readme = open("README.md").read()
-
 @app.get("/")
-async def index():
+def index():
     return {
         "message": "Welcome to Semantic Cache API, it is built using Jina AI Embeddings API and TiDB Vector",
         "docs": "/docs",
@@ -96,7 +95,7 @@ async def index():
 
 # /set method of Semantic Cache
 @app.post("/set")
-async def set(
+def set(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
     cache: Cache,
 ):
@@ -110,7 +109,7 @@ async def set(
 
 
 @app.get("/get/{key}")
-async def get(
+def get(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
     key: str,
     max_distance: Optional[float] = 0.1,
