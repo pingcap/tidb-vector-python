@@ -33,6 +33,7 @@ Please make sure you have created a TiDB Serverless cluster with vector support 
 - [GraphRAG Step by Step Tutorial](./graphrag-step-by-step-tutorial/README.md): Step by step tutorial to build a Knowledge Graph based RAG application with Colab notebook. In this tutorial, you will learn how to extract knowledge from a text corpus, build a Knowledge Graph, store the Knowledge Graph in TiDB Serverless, and search from the Knowledge Graph.
 - [Vector Search Notebook with SQLAlchemy](https://colab.research.google.com/drive/1LuJn4mtKsjr3lHbzMa2RM-oroUvpy83y?usp=sharing): use [SQLAlchemy](https://www.sqlalchemy.org/) to interact with TiDB Serverless: connect db, index&store data and then search vectors.
 - [Build RAG with Jina AI Embeddings](./jina-ai-embeddings-demo/README.md): use Jina AI to generate embeddings for text data, store the embeddings in TiDB Vector Storage, and search for similar embeddings.
+- [Semantic Cache](./semantic-cache/README.md): build a semantic cache with Jina AI and TiDB Vector.
 
 ## Real World Applications
 
