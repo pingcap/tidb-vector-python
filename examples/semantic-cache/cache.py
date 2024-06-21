@@ -123,8 +123,6 @@ def get(
             select(
                 Cache,
                 Cache.key_vec.cosine_distance(key_vec).label('distance')
-            ).filter(
-                Cache.key_vec.cosine_distance(key_vec) <= max_distance
             ).order_by(
                 'distance'
             ).limit(1)
@@ -132,10 +130,13 @@ def get(
 
         if result is None:
             return {"message": "Cache not found"}, 404
-        else:
-            cache, distance = result
-            return {
-                "key": cache.key,
-                "value": cache.value,
-                "distance": distance
-            }
+
+        cache, distance = result
+        if distance > max_distance:
+            return {"message": "Cache not found"}, 404
+
+        return {
+            "key": cache.key,
+            "value": cache.value,
+            "distance": distance
+        }
