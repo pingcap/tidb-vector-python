@@ -1,0 +1,6 @@
+requests
+PyMySQL
+sqlmodel==0.0.19
+tidb-vector>=0.0.9
+python-dotenv
+fastapi
