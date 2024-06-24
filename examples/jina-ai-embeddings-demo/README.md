@@ -33,15 +33,11 @@ pip install -r requirements.txt
 
 Get the Jina AI API key from the [Jina AI Embedding API](https://jina.ai/embeddings/) page
 
-Get the `TIDB_HOST`, `TIDB_USERNAME`, `TIDB_PASSWORD`, `TIDB_HOST`, `TIDB_PORT` and `TIDB_DATABASE` from the TiDB Cloud console, as described in the [Prerequisites](../README.md#prerequisites) section.
+Get the `HOST`, `PORT`, `USERNAME`, `PASSWORD`, `DATABASE`, and `CA` parameters from the TiDB Cloud console (see [Prerequisites](../README.md#prerequisites)), and then replace the following placeholders to get the `TIDB_DATABASE_URL`.
 
 ```bash
 export JINA_API_KEY="****"
-export TIDB_HOST="gateway01.*******.shared.aws.tidbcloud.com"
-export TIDB_USERNAME="****.root"
-export TIDB_PASSWORD="****"
-export TIDB_PORT="4000"
-export TIDB_DATABASE="test"
+export TIDB_DATABASE_URL="mysql+pymysql://<USERNAME>:<PASSWORD>@<HOST>:4000/<DATABASE>?ssl_ca=<CA>&ssl_verify_cert=true&ssl_verify_identity=true"
 ```
 or create a `.env` file with the above environment variables.
 
@@ -54,8 +50,11 @@ $ python jina-ai-embeddings-demo.py
   - Inserting: Jina AI offers best-in-class embeddings, reranker and prompt optimizer, enabling advanced multimodal AI.
   - Inserting: TiDB is an open-source MySQL-compatible database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads.
 - List All Documents and Their Distances to the Query:
-  - Jina AI offers best-in-class embeddings, reranker and prompt optimizer, enabling advanced multimodal AI.: 0.3585317326132522
-  - TiDB is an open-source MySQL-compatible database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads.: 0.10858658947444844
+  - distance: 0.3585317326132522
+    content: Jina AI offers best-in-class embeddings, reranker and prompt optimizer, enabling advanced multimodal AI.
+  - distance: 0.10858102967720984
+    content: TiDB is an open-source MySQL-compatible database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads.
 - The Most Relevant Document and Its Distance to the Query:
-  - TiDB is an open-source MySQL-compatible database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads.: 0.10858658947444844
+  - distance: 0.10858102967720984
+    content: TiDB is an open-source MySQL-compatible database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads.
 ```
