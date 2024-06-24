@@ -2,31 +2,18 @@ import os
 import requests
 import dotenv
 
-from sqlalchemy import Column, Integer, String, create_engine, URL
+from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.orm import Session, declarative_base
 from tidb_vector.sqlalchemy import VectorType
 
 dotenv.load_dotenv()
 
+
+# Step 1. Define a helper function to generate embeddings using Jina AI's API.
 JINAAI_API_KEY = os.getenv('JINAAI_API_KEY')
 assert JINAAI_API_KEY is not None
-TIDB_USERNAME = os.getenv('TIDB_USERNAME')
-TIDB_PASSWORD = os.getenv('TIDB_PASSWORD')
-TIDB_HOST = os.getenv('TIDB_HOST')
-TIDB_PORT = os.getenv('TIDB_PORT')
-TIDB_DATABASE = os.getenv('TIDB_DATABASE')
-assert TIDB_USERNAME is not None
-assert TIDB_PASSWORD is not None
-assert TIDB_HOST is not None
-assert TIDB_PORT is not None
-assert TIDB_DATABASE is not None
 
-TEXTS = [
-    'Jina AI offers best-in-class embeddings, reranker and prompt optimizer, enabling advanced multimodal AI.',
-    'TiDB is an open-source MySQL-compatible database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads.',
-]
 
-# 1. Get Embeddings from Jina AI
 def generate_embeddings(text: str):
     JINAAI_API_URL = 'https://api.jina.ai/v1/embeddings'
     JINAAI_HEADERS = {
@@ -35,32 +22,21 @@ def generate_embeddings(text: str):
     }
     JINAAI_REQUEST_DATA = {
         'input': [text],
-        'model': 'jina-embeddings-v2-base-en'  # with dimisions 768
+        'model': 'jina-embeddings-v2-base-en'  # with dimisions 768.
     }
     response = requests.post(JINAAI_API_URL, headers=JINAAI_HEADERS, json=JINAAI_REQUEST_DATA)
     return response.json()['data'][0]['embedding']
 
-data = []
-for text in TEXTS:
-    embedding = generate_embeddings(text)
-    data.append({
-        'text': text,
-        'embedding': embedding
-    })
+
+# Step 2. Connect TiDB Serverless
+TIDB_DATABASE_URL = os.getenv('TIDB_DATABASE_URL')
+assert TIDB_DATABASE_URL is not None
+engine = create_engine(url=TIDB_DATABASE_URL, pool_recycle=300)
 
 
-# 2. Connect TiDB Serverless and Create Table
-url = URL(
-    drivername="mysql+pymysql",
-    username=TIDB_USERNAME,
-    password=TIDB_PASSWORD,
-    host=TIDB_HOST,
-    port=int(TIDB_PORT),
-    database=TIDB_DATABASE,
-    query={"ssl_verify_cert": True, "ssl_verify_identity": True},
-)
-engine = create_engine(url, pool_recycle=300)
+# Step 3. Create the vector table.
 Base = declarative_base()
+
 
 class Document(Base):
     __tablename__ = "jinaai_tidb_demo_documents"
@@ -69,15 +45,31 @@ class Document(Base):
     content = Column(String(255), nullable=False)
     content_vec = Column(
         # DIMENSIONS is determined by the embedding model,
-        # for Jina AI's jina-embeddings-v2-base-en model it's 768
+        # for Jina AI's jina-embeddings-v2-base-en model it's 768.
         VectorType(dim=768),
-        comment="hnsw(distance=l2)"
+        comment="hnsw(distance=cosine)"
     )
-# Create the table
+
+
 Base.metadata.create_all(engine)
 
 
-# 3. Insert Data from Jina AI to TiDB
+# Step 4. Generate embeddings for texts via Jina AI API and store them in TiDB.
+
+TEXTS = [
+    'Jina AI offers best-in-class embeddings, reranker and prompt optimizer, enabling advanced multimodal AI.',
+    'TiDB is an open-source MySQL-compatible database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads.',
+]
+
+data = []
+for text in TEXTS:
+    # Generate the embedding for the text via Jina AI API.
+    embedding = generate_embeddings(text)
+    data.append({
+        'text': text,
+        'embedding': embedding
+    })
+
 with Session(engine) as session:
     print('- Inserting Data to TiDB...')
     for item in data:
@@ -89,8 +81,9 @@ with Session(engine) as session:
     session.commit()
 
 
-# 4. Query Data from TiDB
+# Step 5. Query the most relevant document based on the query.
 query = 'What is TiDB?'
+# Generate the embedding for the query via Jina AI API.
 query_embedding = generate_embeddings(query)
 with Session(engine) as session:
     print('- List All Documents and Their Distances to the Query:')
@@ -98,7 +91,8 @@ with Session(engine) as session:
         Document,
         Document.content_vec.cosine_distance(query_embedding).label('distance')
     ).all():
-        print(f'  - {doc.content}: {distance}')
+        print(f'  - distance: {distance}\n'
+              f'    content: {doc.content}')
 
     print('- The Most Relevant Document and Its Distance to the Query:')
     doc, distance = session.query(
@@ -107,15 +101,20 @@ with Session(engine) as session:
     ).order_by(
         'distance'
     ).limit(1).first()
-    print(f'  - {doc.content}: {distance}')
+    print(f'  - distance: {distance}\n'
+          f'    content: {doc.content}')
 
-# Output:
+# Expected Output:
 #
 # - Inserting Data to TiDB...
 #   - Inserting: Jina AI offers best-in-class embeddings, reranker and prompt optimizer, enabling advanced multimodal AI.
 #   - Inserting: TiDB is an open-source MySQL-compatible database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads.
 # - List All Documents and Their Distances to the Query:
-#   - Jina AI offers best-in-class embeddings, reranker and prompt optimizer, enabling advanced multimodal AI.: 0.3585317326132522
-#   - TiDB is an open-source MySQL-compatible database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads.: 0.10858658947444844
+#   - distance: 0.3585317326132522
+#     content: Jina AI offers best-in-class embeddings, reranker and prompt optimizer, enabling advanced multimodal AI.
+#   - distance: 0.10858102967720984
+#     content: TiDB is an open-source MySQL-compatible database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads.
 # - The Most Relevant Document and Its Distance to the Query:
-#   - TiDB is an open-source MySQL-compatible database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads.: 0.10858658947444844
+#   - distance: 0.10858102967720984
+#     content: TiDB is an open-source MySQL-compatible database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads.
+
