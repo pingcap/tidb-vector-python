@@ -4,7 +4,7 @@ from tidb_vector.utils import decode_vector, encode_vector
 
 
 class VectorField(Field):
-    field_type = "VECTOR<FLOAT>"
+    field_type = "VECTOR"
 
     def __init__(self, dimensions=None, *args, **kwargs):
         self.dimensions = dimensions
