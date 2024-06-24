@@ -50,8 +50,11 @@ $ python jina-ai-embeddings-demo.py
   - Inserting: Jina AI offers best-in-class embeddings, reranker and prompt optimizer, enabling advanced multimodal AI.
   - Inserting: TiDB is an open-source MySQL-compatible database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads.
 - List All Documents and Their Distances to the Query:
-  - Jina AI offers best-in-class embeddings, reranker and prompt optimizer, enabling advanced multimodal AI.: 0.3585317326132522
-  - TiDB is an open-source MySQL-compatible database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads.: 0.10858658947444844
+  - distance: 0.3585317326132522
+    content: Jina AI offers best-in-class embeddings, reranker and prompt optimizer, enabling advanced multimodal AI.
+  - distance: 0.10858102967720984
+    content: TiDB is an open-source MySQL-compatible database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads.
 - The Most Relevant Document and Its Distance to the Query:
-  - TiDB is an open-source MySQL-compatible database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads.: 0.10858658947444844
+  - distance: 0.10858102967720984
+    content: TiDB is an open-source MySQL-compatible database that supports Hybrid Transactional and Analytical Processing (HTAP) workloads.
 ```
