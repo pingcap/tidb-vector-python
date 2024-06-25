@@ -274,12 +274,17 @@ class TiDBVectorClient:
             k (int, optional): The number of results to return. Defaults to 5.
             filter (dict, optional): A filter to apply to the search results.
                 Defaults to None.
+            post_filter_multiplier (int, optional): A multiplier to increase the initial
+                number of results fetched before applying the filter. Defaults to 1.
             **kwargs: Additional keyword arguments.
 
         Returns:
             A list of tuples containing relevant documents and their similarity scores.
         """
-        relevant_docs = self._vector_search(query_vector, k, filter)
+        post_filter_multiplier = kwargs.get("post_filter_multiplier", 1)
+        relevant_docs = self._vector_search(
+            query_vector, k, filter, post_filter_multiplier
+        )
 
         return [
             QueryResult(
@@ -296,26 +301,58 @@ class TiDBVectorClient:
         query_embedding: List[float],
         k: int = 5,
         filter: Optional[Dict[str, str]] = None,
+        post_filter_multiplier: int = 1,
     ) -> List[Any]:
         """vector search from table."""
 
-        filter_by = self._build_filter_clause(filter)
         with Session(self._bind) as session:
-            results: List[Any] = (
-                session.query(
-                    self._table_model.id,
-                    self._table_model.meta,
-                    self._table_model.document,
-                    self.distance_strategy(query_embedding).label("distance"),
+            if filter is None:
+                results: List[Any] = (
+                    session.query(
+                        self._table_model.id,
+                        self._table_model.meta,
+                        self._table_model.document,
+                        self.distance_strategy(query_embedding).label("distance"),
+                    )
+                    .order_by(sqlalchemy.asc("distance"))
+                    .limit(k)
+                    .all()
                 )
-                .filter(filter_by)
-                .order_by(sqlalchemy.asc("distance"))
-                .limit(k)
-                .all()
-            )
+            else:
+                # Caused by the tidb vector search plan limited, this post_filter_multiplier is used to
+                # improved the search performance temporarily.
+                # Notice the return count may be less than k in this sutiation.
+                subquery = (
+                    session.query(
+                        self._table_model.id,
+                        self._table_model.meta,
+                        self._table_model.document,
+                        self.distance_strategy(query_embedding).label("distance"),
+                    )
+                    .order_by(sqlalchemy.asc("distance"))
+                    .limit(post_filter_multiplier * k * 10)
+                    .subquery()
+                )
+                filter_by = self._build_filter_clause(filter, subquery.c)
+                results: List[Any] = (
+                    session.query(
+                        subquery.c.id,
+                        subquery.c.meta,
+                        subquery.c.document,
+                        subquery.c.distance,
+                    )
+                    .filter(filter_by)
+                    .order_by(sqlalchemy.asc(subquery.c.distance))
+                    .limit(k)
+                    .all()
+                )
         return results
 
-    def _build_filter_clause(self, filters: Optional[Dict[str, Any]] = None) -> Any:
+    def _build_filter_clause(
+        self,
+        filters: Optional[Dict[str, Any]] = None,
+        table_model: Optional[Any] = None,
+    ) -> Any:
         """
         Builds the filter clause for querying based on the provided filters.
 
@@ -326,6 +363,9 @@ class TiDBVectorClient:
             Any: The filter clause to be used in the query on TiDB.
         """
 
+        if table_model is None:
+            table_model = self._table_model
+
         filter_by = sqlalchemy.true()
         if filters is not None:
             filter_clauses = []
@@ -333,7 +373,7 @@ class TiDBVectorClient:
             for key, value in filters.items():
                 if key.lower() == "$and":
                     and_clauses = [
-                        self._build_filter_clause(condition)
+                        self._build_filter_clause(condition, table_model)
                         for condition in value
                         if isinstance(condition, dict) and condition is not None
                     ]
@@ -341,7 +381,7 @@ class TiDBVectorClient:
                     filter_clauses.append(filter_by_metadata)
                 elif key.lower() == "$or":
                     or_clauses = [
-                        self._build_filter_clause(condition)
+                        self._build_filter_clause(condition, table_model)
                         for condition in value
                         if isinstance(condition, dict) and condition is not None
                     ]
@@ -362,13 +402,15 @@ class TiDBVectorClient:
                         f"Operator {key} must be followed by a meta key. "
                     )
                 elif isinstance(value, dict):
-                    filter_by_metadata = self._create_filter_clause(key, value)
+                    filter_by_metadata = self._create_filter_clause(
+                        table_model, key, value
+                    )
 
                     if filter_by_metadata is not None:
                         filter_clauses.append(filter_by_metadata)
                 else:
                     filter_by_metadata = (
-                        sqlalchemy.func.json_extract(self._table_model.meta, f"$.{key}")
+                        sqlalchemy.func.json_extract(table_model.meta, f"$.{key}")
                         == value
                     )
                     filter_clauses.append(filter_by_metadata)
@@ -376,7 +418,7 @@ class TiDBVectorClient:
             filter_by = sqlalchemy.and_(filter_by, *filter_clauses)
         return filter_by
 
-    def _create_filter_clause(self, key, value):
+    def _create_filter_clause(self, table_model, key, value):
         """
         Create a filter clause based on the provided key-value pair.
 
@@ -403,7 +445,7 @@ class TiDBVectorClient:
             "$ne",
         )
 
-        json_key = sqlalchemy.func.json_extract(self._table_model.meta, f"$.{key}")
+        json_key = sqlalchemy.func.json_extract(table_model.meta, f"$.{key}")
         value_case_insensitive = {k.lower(): v for k, v in value.items()}
 
         if IN in map(str.lower, value):
