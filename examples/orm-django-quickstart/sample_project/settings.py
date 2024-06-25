@@ -93,7 +93,7 @@ DATABASES = {
     }
 }
 
-TIDB_CA_PATH = os.environ.get("CA_PATH", "")
+TIDB_CA_PATH = os.environ.get("TIDB_CA_PATH", "")
 if TIDB_CA_PATH:
     DATABASES["default"]["OPTIONS"]["ssl_mode"] = "VERIFY_IDENTITY"
     DATABASES["default"]["OPTIONS"]["ssl"] = {
