@@ -46,7 +46,7 @@ TIDB_USERNAME=******.root
 TIDB_PASSWORD=********
 TIDB_DATABASE=test
 # For macOS. For other platforms, please refer https://docs.pingcap.com/tidbcloud/secure-connections-to-serverless-clusters#root-certificate-default-path .
-TIDB_CA=/etc/ssl/cert.pem
+TIDB_CA_PATH=/etc/ssl/cert.pem
 ```
 
 ### Run this example
