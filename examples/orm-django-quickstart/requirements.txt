@@ -1,0 +1,5 @@
+Django==4.2.4
+django-tidb>=4.2.4
+mysqlclient==2.2.0
+python-dotenv==1.0.0
+tidb-vector>=0.0.9
