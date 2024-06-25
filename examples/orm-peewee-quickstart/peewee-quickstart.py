@@ -26,7 +26,7 @@ connect_kwargs = {
 
 db = MySQLDatabase(
     database=os.environ.get('TIDB_DATABASE', 'test'),
-    user=os.environ.get('TIDB_USER', 'root'),
+    user=os.environ.get('TIDB_USERNAME', 'root'),
     password=os.environ.get('TIDB_PASSWORD', ''),
     host=os.environ.get('TIDB_HOST', 'localhost'),
     port=int(os.environ.get('TIDB_PORT', '4000')),

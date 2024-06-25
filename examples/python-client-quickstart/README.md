@@ -1,6 +1,6 @@
 # TiDB Vector Search Python Client Quickstart
 
-This is a simple demo to show how to use the TiDB Vector Search Python client to search for similar text in a TiDB Serverless cluster.
+This is a simple demo to show how to use the TiDB Vector Search Python Client to search for similar text in a TiDB Serverless cluster.
 
 ## Prerequisites
 

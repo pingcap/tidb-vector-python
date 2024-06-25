@@ -63,5 +63,3 @@ with (Session(engine) as session):
     for doc, distance in results:
         print(f'  - distance: {distance}\n'
               f'    document: {doc.content}')
-
-

@@ -84,9 +84,9 @@ DATABASES = {
         "ENGINE": "django_tidb",
         "HOST": os.environ.get("TIDB_HOST", "127.0.0.1"),
         "PORT": int(os.environ.get("TIDB_PORT", 4000)),
-        "USER": os.environ.get("TIDB_USER", "root"),
+        "USER": os.environ.get("TIDB_USERNAME", "root"),
         "PASSWORD": os.environ.get("TIDB_PASSWORD", ""),
-        "NAME": os.environ.get("TIDB_DB_NAME", "test"),
+        "NAME": os.environ.get("TIDB_DATABASE", "test"),
         "OPTIONS": {
             "charset": "utf8mb4",
         },
