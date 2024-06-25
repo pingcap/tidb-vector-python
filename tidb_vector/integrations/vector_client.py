@@ -274,6 +274,7 @@ class TiDBVectorClient:
             k (int, optional): The number of results to return. Defaults to 5.
             filter (dict, optional): A filter to apply to the search results.
                 Defaults to None.
+            post_filter_enabled (bool, optional): Whether to apply the post-filtering.
             post_filter_multiplier (int, optional): A multiplier to increase the initial
                 number of results fetched before applying the filter. Defaults to 1.
             **kwargs: Additional keyword arguments.
@@ -281,10 +282,7 @@ class TiDBVectorClient:
         Returns:
             A list of tuples containing relevant documents and their similarity scores.
         """
-        post_filter_multiplier = kwargs.get("post_filter_multiplier", 1)
-        relevant_docs = self._vector_search(
-            query_vector, k, filter, post_filter_multiplier
-        )
+        relevant_docs = self._vector_search(query_vector, k, filter, **kwargs)
 
         return [
             QueryResult(
@@ -301,12 +299,15 @@ class TiDBVectorClient:
         query_embedding: List[float],
         k: int = 5,
         filter: Optional[Dict[str, str]] = None,
-        post_filter_multiplier: int = 1,
+        **kwargs: Any,
     ) -> List[Any]:
         """vector search from table."""
 
+        post_filter_enabled = kwargs.get("post_filter_enabled", False)
+        post_filter_multiplier = kwargs.get("post_filter_multiplier", 1)
         with Session(self._bind) as session:
-            if filter is None:
+            if post_filter_enabled is False or filter is None:
+                filter_by = self._build_filter_clause(filter)
                 results: List[Any] = (
                     session.query(
                         self._table_model.id,
@@ -314,6 +315,7 @@ class TiDBVectorClient:
                         self._table_model.document,
                         self.distance_strategy(query_embedding).label("distance"),
                     )
+                    .filter(filter_by)
                     .order_by(sqlalchemy.asc("distance"))
                     .limit(k)
                     .all()
