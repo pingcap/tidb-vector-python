@@ -274,7 +274,7 @@ class TiDBVectorClient:
             k (int, optional): The number of results to return. Defaults to 5.
             filter (dict, optional): A filter to apply to the search results.
                 Defaults to None.
-            post_filter_enabled (bool, optional): Whether to apply the post-filtering.
+            post_filter_enabled (bool, optional): Whether to apply the post-filtering. TiDB cannot utilize Vector Index when query contains a pre-filter.
             post_filter_multiplier (int, optional): A multiplier to increase the initial
                 number of results fetched before applying the filter. Defaults to 1.
             **kwargs: Additional keyword arguments.
