@@ -306,7 +306,7 @@ class TiDBVectorClient:
         post_filter_enabled = kwargs.get("post_filter_enabled", False)
         post_filter_multiplier = kwargs.get("post_filter_multiplier", 1)
         with Session(self._bind) as session:
-            if post_filter_enabled is False or filter is None:
+            if post_filter_enabled is False or not filter:
                 filter_by = self._build_filter_clause(filter)
                 results: List[Any] = (
                     session.query(
