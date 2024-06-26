@@ -323,7 +323,7 @@ class TiDBVectorClient:
             else:
                 # Caused by the tidb vector search plan limited, this post_filter_multiplier is used to
                 # improved the search performance temporarily.
-                # Notice the return count may be less than k in this sutiation.
+                # Notice the return count may be less than k in this situation.
                 subquery = (
                     session.query(
                         self._table_model.id,
