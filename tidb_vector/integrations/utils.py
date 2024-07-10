@@ -90,7 +90,7 @@ def extract_info_from_column_definition(column_type, column_comment):
     """
     # Try to extract the dimension, which is optional.
     dimension_match = re.search(
-        r"VECTOR<FLOAT>(?:\((\d+)\))?", column_type, re.IGNORECASE
+        r"VECTOR(?:\((\d+)\))?", column_type, re.IGNORECASE
     )
     dimension = (
         int(dimension_match.group(1))
