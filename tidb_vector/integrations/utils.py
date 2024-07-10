@@ -89,9 +89,7 @@ def extract_info_from_column_definition(column_type, column_comment):
         tuple: A tuple containing the dimension (int or None) and the distance metric (str or None).
     """
     # Try to extract the dimension, which is optional.
-    dimension_match = re.search(
-        r"VECTOR(?:\((\d+)\))?", column_type, re.IGNORECASE
-    )
+    dimension_match = re.search(r"VECTOR(?:\((\d+)\))?", column_type, re.IGNORECASE)
     dimension = (
         int(dimension_match.group(1))
         if dimension_match and dimension_match.group(1)
