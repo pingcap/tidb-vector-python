@@ -1,17 +1,19 @@
-from typing import List, Optional, Union
+from dsp import dotdict
+from typing import Union, List, Optional
 import dspy
-from dsp.utils import dotdict
 from sentence_transformers import SentenceTransformer
-
 from tidb_vector.integrations import TiDBVectorClient
 
 
-def sentence_transformer_embedding_function(model: str, sentences: Union[str, List[str]]):
+def sentence_transformer_embedding_function(
+        embed_model: SentenceTransformer,
+        sentences: Union[str, List[str]]
+) -> List[float]:
     """
     Generates vector embeddings for the given text using the sentence-transformers model.
 
     Args:
-        model (str): The name or path of the sentence-transformers model to use.
+        embed_model (SentenceTransformer): The sentence-transformers model to use.
         sentences (List[str]): A list of text sentences for which to generate embeddings.
 
     Returns:
@@ -20,11 +22,11 @@ def sentence_transformer_embedding_function(model: str, sentences: Union[str, Li
     Examples:
         Below is a code snippet that shows how to use this function:
         ```python
-        embeddings = sentence_transformer_embedding_function("sentence-transformers/multi-qa-mpnet-base-dot-v1", ["Hello, world!"])
+        embeddings = sentence_transformer_embedding_function(["Hello, world!"])
         ```
     """
-    embed_model = SentenceTransformer(model, trust_remote_code=True)
-    return embed_model.encode(sentences)
+
+    return embed_model.encode(sentences).tolist()
 
 
 class TidbRM(dspy.Retrieve):
@@ -66,7 +68,7 @@ class TidbRM(dspy.Retrieve):
         super().__init__(k)
         self.tidb_vector_client = tidb_vector_client
         self.embedding_function = embedding_function
-        self.k = k
+        self.top_k = k
 
     def forward(self, query_or_queries: Union[str, List[str]], k: Optional[int] = None, **kwargs) -> dspy.Prediction:
         """
@@ -85,10 +87,8 @@ class TidbRM(dspy.Retrieve):
             passages = self.retrieve("Hello, world!")
             ```
         """
-        if self.embedding_function is None:
-            raise ValueError("embedding_function is required to use TidbRM")
-
         query_embeddings = self.embedding_function(query_or_queries)
+        k = k or self.top_k
         tidb_vector_res = self.tidb_vector_client.query(query_vector=query_embeddings, k=k)
         passages_scores = {}
         for res in tidb_vector_res:
