@@ -5,7 +5,6 @@ This example demonstrates how to use the DSPy and TiDB Serverless to build a sim
 ## Prerequisites
 
 - A running TiDB Serverless cluster
-    - Vector search enabled
 - Python 3.10 or later
 - Ollama or OpenAI
 
