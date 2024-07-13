@@ -31,7 +31,7 @@ class VectorType(UserDefinedType):
         """
         Returns the column specification for the vector column.
 
-        If the dimension is not specified, it returns "VECTOR<FLOAT>".
+        If the dimension is not specified, it returns "VECTOR".
         Otherwise, it returns "VECTOR(<dimension>)".
 
         :param kw: Additional keyword arguments.
@@ -39,8 +39,8 @@ class VectorType(UserDefinedType):
         """
 
         if self.dim is None:
-            return "VECTOR<FLOAT>"
-        return "VECTOR<FLOAT>(%d)" % self.dim
+            return "VECTOR"
+        return "VECTOR(%d)" % self.dim
 
     def bind_processor(self, dialect):
         """Convert the vector float array to a string representation suitable for binding to a database column."""
