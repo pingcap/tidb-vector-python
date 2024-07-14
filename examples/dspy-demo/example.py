@@ -12,13 +12,7 @@ from utils import sentence_transformer_embedding_function, TidbRM, RAG
 # Load the environment variables from the .env file.
 load_dotenv()
 
-# The configuration for the sentence-transformers model.
-transformer = {
-    # The name or path of the sentence-transformers model to use.
-    "model": "sentence-transformers/multi-qa-mpnet-base-dot-v1",
-}
-
-embed_model = SentenceTransformer(transformer["model"], trust_remote_code=True)
+embed_model = SentenceTransformer(os.environ.get('SENTENCE_TRANSFORMERS_NAME'), trust_remote_code=True)
 embed_model_dim = embed_model.get_sentence_embedding_dimension()
 embedding_function = partial(sentence_transformer_embedding_function, embed_model)
 

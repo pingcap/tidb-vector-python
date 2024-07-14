@@ -4,23 +4,36 @@ import dspy
 from sentence_transformers import SentenceTransformer
 from tidb_vector.integrations import TiDBVectorClient
 
+# Vector and Vectors
+# https://platform.openai.com/docs/api-reference/embeddings/create#embeddings-create-encoding_format
+Vector = Union[List[float], List[int]]
+Vectors = List[Vector]
+
 
 def sentence_transformer_embedding_function(
         embed_model: SentenceTransformer,
         sentences: Union[str, List[str]]
-) -> List[float]:
+) -> Union[Vector, Vectors]:
     """
     Generates vector embeddings for the given text using the sentence-transformers model.
 
     Args:
         embed_model (SentenceTransformer): The sentence-transformers model to use.
-        sentences (List[str]): A list of text sentences for which to generate embeddings.
+        sentences (Union[str, List[str]]): The text or list of texts for which to generate embeddings.
 
     Returns:
-        List: A list of embeddings for the given text sentences.
+        if sentences is a single string:
+            List[float]: The embedding for the input sentence.
+        if sentences is a list of strings:
+            List[List[float]]: The embeddings for the input sentences.
+
 
     Examples:
         Below is a code snippet that shows how to use this function:
+        ```python
+        embeddings = sentence_transformer_embedding_function("Hello, world!")
+        ```
+        or
         ```python
         embeddings = sentence_transformer_embedding_function(["Hello, world!"])
         ```
@@ -95,9 +108,8 @@ class TidbRM(dspy.Retrieve):
             res.metadata = dotdict(res.metadata)
             passages_scores[res.document] = res.distance
         sorted_passages = sorted(passages_scores.items(), key=lambda x: x[1], reverse=True)
-        k_sorted_passages = sorted_passages[:k]
 
-        return dspy.Prediction(passages=[dotdict({"long_text": passage}) for passage, _ in k_sorted_passages])
+        return dspy.Prediction(passages=[dotdict({"long_text": passage}) for passage, _ in sorted_passages])
 
 
 class GenerateAnswer(dspy.Signature):
