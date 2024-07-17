@@ -1,4 +1,5 @@
 import contextlib
+import copy
 from dataclasses import dataclass
 import logging
 import enum
@@ -174,6 +175,22 @@ class TiDBVectorClient:
         """Close the connection when the program is closed"""
         if isinstance(self._bind, sqlalchemy.engine.Connection):
             self._bind.close()
+
+    def __deepcopy__(self, memo):
+        # Create a shallow copy of the object to start with, to copy non-engine attributes
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+
+        # Copy all attributes except the engine connection (_bind)
+        for k, v in self.__dict__.items():
+            if k != "_bind":  # Skip copying the engine connection
+                setattr(result, k, copy.deepcopy(v, memo))
+
+        # Directly assign the engine connection without copying
+        result._bind = self._bind
+
+        return result
 
     @contextlib.contextmanager
     def _make_session(self) -> Generator[Session, None, None]:
