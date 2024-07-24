@@ -4,7 +4,7 @@ This directory contains examples of how to use the TiDB as a vector database.
 
 ## Prerequisites
 
-Please follow the instructions below to set up a TiDB Serverless cluster with built-in vector supported.
+Please follow the instructions below to set up a TiDB Serverless cluster with built-in vector search supported.
 
 1. Sign up [TiDB Cloud](https://tidbcloud.com)
 2. Follow this [tutorial](https://docs.pingcap.com/tidbcloud/tidb-cloud-quickstart#step-1-create-a-tidb-cluster) to create a TiDB Serverless cluster
