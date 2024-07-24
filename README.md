@@ -2,7 +2,7 @@
 
 This is a Python client for TiDB Vector.
 
-> Now only TiDB Cloud Serverless cluster support vector data type, see this [blog](https://www.pingcap.com/blog/integrating-vector-search-into-tidb-for-ai-applications/) for more information.
+> Now only TiDB Cloud Serverless cluster support vector data type, see this [docs](https://docs.pingcap.com/tidbcloud/vector-search-overview?utm_source=github&utm_medium=tidb-vector-python) for more information.
 
 ## Installation
 
