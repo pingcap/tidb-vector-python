@@ -250,3 +250,6 @@ There are some examples to show how to use the tidb-vector-python to interact wi
 - [Semantic Cache](./examples/semantic-cache/README.md): build a semantic cache with Jina AI and TiDB Vector.
 
 for more examples, see the [examples](./examples) directory.
+
+## Contributing
+Please feel free to reach out to the maintainers if you have any questions or need help with the project. Before contributing, please read the [CONTRIBUTING.md](./CONTRIBUTING.md) file.
