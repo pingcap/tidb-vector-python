@@ -13,8 +13,10 @@ db_url = URL(
     password=TestConfig.TIDB_PASSWORD,
     host=TestConfig.TIDB_HOST,
     port=TestConfig.TIDB_PORT,
-    database="ci_sqlalchemy_test",
-    query={"ssl_verify_cert": True, "ssl_verify_identity": True},
+    database="test",
+    query={"ssl_verify_cert": True, "ssl_verify_identity": True}
+    if TestConfig.TIDB_SSL
+    else {},
 )
 
 engine = create_engine(db_url)
@@ -23,13 +25,13 @@ Base = declarative_base()
 
 
 class Item1Model(Base):
-    __tablename__ = "item1"
+    __tablename__ = "sqlalchemy_item1"
     id = Column(Integer, primary_key=True)
     embedding = Column(VectorType())
 
 
 class Item2Model(Base):
-    __tablename__ = "item2"
+    __tablename__ = "sqlalchemy_item2"
     id = Column(Integer, primary_key=True)
     embedding = Column(VectorType(dim=3))
 

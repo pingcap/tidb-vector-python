@@ -16,9 +16,11 @@ try:
 
     TABLE_NAME = "tidb_vector_test"
     CONNECTION_STRING = (
-        f"mysql+pymysql://{TestConfig.TIDB_USER}:{TestConfig.TIDB_PASSWORD}@{TestConfig.TIDB_HOST}:4000/ci_integration"
-        f"?ssl_verify_cert=true&ssl_verify_identity=true"
+        f"mysql+pymysql://{TestConfig.TIDB_USER}:{TestConfig.TIDB_PASSWORD}"
+        f"@{TestConfig.TIDB_HOST}:4000/test"
     )
+    if TestConfig.TIDB_SSL:
+        CONNECTION_STRING += "?ssl_verify_cert=true&ssl_verify_identity=true"
 
     tidb_available = True
 except (OSError, ImportError):

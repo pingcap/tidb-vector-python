@@ -4,16 +4,15 @@ from peewee import MySQLDatabase, Model, OperationalError
 from tidb_vector.peewee import VectorField
 from ..config import TestConfig
 
-try:
-    import pymysql  # noqa
 
+if TestConfig.TIDB_SSL:
     connect_kwargs = {"ssl_verify_cert": True, "ssl_verify_identity": True}
-except ImportError:
+else:
     connect_kwargs = {}
 
 
 db = MySQLDatabase(
-    "ci_peewee_test",
+    "test",
     host=TestConfig.TIDB_HOST,
     port=TestConfig.TIDB_PORT,
     user=TestConfig.TIDB_USER,
@@ -30,9 +29,15 @@ class BaseModel(Model):
 class Item1Model(BaseModel):
     embedding = VectorField()
 
+    class Meta:
+        table_name = "peewee_item1"
+
 
 class Item2Model(BaseModel):
     embedding = VectorField(dimensions=3)
+
+    class Meta:
+        table_name = "peewee_item2"
 
 
 class TestPeewee:

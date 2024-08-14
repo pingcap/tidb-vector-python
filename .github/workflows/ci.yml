@@ -33,10 +33,11 @@ jobs:
           - '3.12'
     name: py${{ matrix.python-version }}_test
     runs-on: ubuntu-latest
-    env:
-      TEST_TIDB_HOST: ${{ secrets.TEST_TIDB_HOST }}
-      TEST_TIDB_USER: ${{ secrets.TEST_TIDB_USER }}
-      TEST_TIDB_PASSWORD: ${{ secrets.TEST_TIDB_PASSWORD }}
+    services:
+      tidb:
+        image: wangdi4zm/tind:v7.5.3-vector-index
+        ports:
+          - 4000:4000
     steps:
       - name: Checkout
         uses: actions/checkout@v3
