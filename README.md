@@ -19,7 +19,7 @@ TiDB vector supports below distance functions:
 - `CosineDistance`
 - `NegativeInnerProduct`
 
-It also supports using hnsw index with l2 or cosine distance to speed up the search, for more details see [Vector Search Indexes in TiDB](https://docs.google.com/document/d/15eAO0xrvEd6_tTxW_zEko4CECwnnSwQg8GGrqK1Caiw)
+It also supports using hnsw index with l2 or cosine distance to speed up the search, for more details see [Vector Search Indexes in TiDB](https://docs.pingcap.com/tidbcloud/vector-search-index)
 
 Supports following orm or framework:
 
