@@ -173,7 +173,9 @@ class TiDBVectorClient:
 
     def __del__(self) -> None:
         """Close the connection when the program is closed"""
-        if self._bind is not None and isinstance(self._bind, sqlalchemy.engine.Connection):
+        if self._bind is not None and isinstance(
+            self._bind, sqlalchemy.engine.Connection
+        ):
             self._bind.close()
 
     def __deepcopy__(self, memo):
