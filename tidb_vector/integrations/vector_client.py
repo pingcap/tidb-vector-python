@@ -173,10 +173,8 @@ class TiDBVectorClient:
 
     def __del__(self) -> None:
         """Close the connection when the program is closed"""
-        if self._bind is not None and isinstance(
-            self._bind, sqlalchemy.engine.Connection
-        ):
-            self._bind.close()
+        if self._bind is not None and isinstance(self._bind, sqlalchemy.engine.Engine):
+            self._bind.dispose()
 
     def __deepcopy__(self, memo):
         # Create a shallow copy of the object to start with, to copy non-engine attributes
@@ -328,7 +326,7 @@ class TiDBVectorClient:
         with Session(self._bind) as session:
             if post_filter_enabled is False or not filter:
                 filter_by = self._build_filter_clause(filter)
-                results: List[Any] = (
+                results = (
                     session.query(
                         self._table_model.id,
                         self._table_model.meta,
@@ -356,7 +354,7 @@ class TiDBVectorClient:
                     .subquery()
                 )
                 filter_by = self._build_filter_clause(filter, subquery.c)
-                results: List[Any] = (
+                results = (
                     session.query(
                         subquery.c.id,
                         subquery.c.meta,
