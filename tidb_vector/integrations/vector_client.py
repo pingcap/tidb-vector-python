@@ -171,11 +171,6 @@ class TiDBVectorClient:
         """Create a sqlalchemy engine."""
         return sqlalchemy.create_engine(url=self.connection_string, **self._engine_args)
 
-    def __del__(self) -> None:
-        """Close the connection when the program is closed"""
-        if self._bind is not None and isinstance(self._bind, sqlalchemy.engine.Engine):
-            self._bind.dispose()
-
     def __deepcopy__(self, memo):
         # Create a shallow copy of the object to start with, to copy non-engine attributes
         cls = self.__class__
