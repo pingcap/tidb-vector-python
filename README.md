@@ -2,7 +2,7 @@
 
 This is a Python client for TiDB Vector.
 
-> Now only TiDB Cloud Serverless cluster support vector data type, see this [docs](https://docs.pingcap.com/tidbcloud/vector-search-overview?utm_source=github&utm_medium=tidb-vector-python) for more information.
+Both TiDB Cloud Serverless ([doc](https://docs.pingcap.com/tidbcloud/vector-search-overview?utm_source=github&utm_medium=tidb-vector-python)) and TiDB Open Source Version (>= 8.4 DMR) support vector data type.
 
 ## Installation
 
@@ -42,16 +42,10 @@ from tidb_vector.sqlalchemy import VectorType
 engine = create_engine('mysql://****.root:******@gateway01.xxxxxx.shared.aws.tidbcloud.com:4000/test')
 Base = declarative_base()
 
-class Test(Base):
-    __tablename__ = 'test'
+class Document(Base):
+    __tablename__ = 'sqlalchemy_documents'
     id = Column(Integer, primary_key=True)
     embedding = Column(VectorType(3))
-
-# or add hnsw index when creating table
-class TestWithIndex(Base):
-    __tablename__ = 'test_with_index'
-    id = Column(Integer, primary_key=True)
-    embedding = Column(VectorType(3), comment="hnsw(distance=l2)")
 
 Base.metadata.create_all(engine)
 ```
@@ -59,27 +53,41 @@ Base.metadata.create_all(engine)
 Insert vector data
 
 ```python
-test = Test(embedding=[1, 2, 3])
-session.add(test)
+doc = Document(embedding=[1, 2, 3])
+session.add(doc)
 session.commit()
 ```
 
 Get the nearest neighbors
 
 ```python
-session.scalars(select(Test).order_by(Test.embedding.l2_distance([1, 2, 3.1])).limit(5))
+session.scalars(select(Document).order_by(Document.embedding.l2_distance([1, 2, 3.1])).limit(5))
 ```
 
 Get the distance
 
 ```python
-session.scalars(select(Test.embedding.l2_distance([1, 2, 3.1])))
+session.scalars(select(Document.embedding.l2_distance([1, 2, 3.1])))
 ```
 
 Get within a certain distance
 
 ```python
-session.scalars(select(Test).filter(Test.embedding.l2_distance([1, 2, 3.1]) < 0.2))
+session.scalars(select(Document).filter(Document.embedding.l2_distance([1, 2, 3.1]) < 0.2))
+```
+
+Add hnsw index
+
+```python
+# vector index currently depends on tiflash
+session.execute(text('ALTER TABLE sqlalchemy_documents SET TIFLASH REPLICA 1'))
+index = Index(
+    'idx_embedding',
+    func.vec_cosine_distance(Document.embedding),
+    mysql_prefix="vector",
+    mysql_using="hnsw"
+)
+index.create(engine)
 ```
 
 ### Django
@@ -119,48 +127,50 @@ db = MySQLDatabase(
     **connect_kwargs,
 )
 
-class TestModel(Model):
-    class Meta:
-        database = db
-        table_name = 'test'
-
+class DocumentModel(Model):
     embedding = VectorField(3)
-
-# or add hnsw index when creating table
-class TestModelWithIndex(Model):
     class Meta:
         database = db
-        table_name = 'test_with_index'
-
-    embedding = VectorField(3, constraints=[SQL("COMMENT 'hnsw(distance=l2)'")])
-
+        table_name = 'peewee_documents'
 
 db.connect()
-db.create_tables([TestModel, TestModelWithIndex])
+db.create_tables([DocumentModel])
 ```
 
 Insert vector data
 
 ```python
-TestModel.create(embedding=[1, 2, 3])
+DocumentModel.create(embedding=[1, 2, 3])
 ```
 
 Get the nearest neighbors
 
 ```python
-TestModel.select().order_by(TestModel.embedding.l2_distance([1, 2, 3.1])).limit(5)
+DocumentModel.select().order_by(DocumentModel.embedding.l2_distance([1, 2, 3.1])).limit(5)
 ```
 
 Get the distance
 
 ```python
-TestModel.select(TestModel.embedding.cosine_distance([1, 2, 3.1]).alias('distance'))
+DocumentModel.select(DocumentModel.embedding.cosine_distance([1, 2, 3.1]).alias('distance'))
 ```
 
 Get within a certain distance
 
 ```python
-TestModel.select().where(TestModel.embedding.l2_distance([1, 2, 3.1]) < 0.5)
+DocumentModel.select().where(DocumentModel.embedding.l2_distance([1, 2, 3.1]) < 0.5)
+```
+
+Add hnsw index
+
+```python
+# vector index currently depends on tiflash
+db.execute_sql(SQL(
+    "ALTER TABLE peewee_documents SET TIFLASH REPLICA 1;"
+))
+TestModel.add_index(SQL(
+    "CREATE VECTOR INDEX idx_embedding ON peewee_documents ((vec_cosine_distance(embedding))) USING HNSW"
+))
 ```
 
 ### TiDB Vector Client
