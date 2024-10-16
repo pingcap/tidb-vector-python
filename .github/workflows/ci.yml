@@ -16,9 +16,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+
       - name: Install dependencies
         run: |
-          export PIP_BREAK_SYSTEM_PACKAGES=1
           python -m pip install --upgrade pip
           python -m pip install tox
 
