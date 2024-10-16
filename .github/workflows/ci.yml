@@ -18,6 +18,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          export PIP_BREAK_SYSTEM_PACKAGES=1
           python -m pip install --upgrade pip
           python -m pip install tox
 
