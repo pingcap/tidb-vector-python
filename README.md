@@ -168,7 +168,7 @@ Add hnsw index
 db.execute_sql(SQL(
     "ALTER TABLE peewee_documents SET TIFLASH REPLICA 1;"
 ))
-TestModel.add_index(SQL(
+DocumentModel.add_index(SQL(
     "CREATE VECTOR INDEX idx_embedding ON peewee_documents ((vec_cosine_distance(embedding))) USING HNSW"
 ))
 ```
