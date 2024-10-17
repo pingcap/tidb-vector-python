@@ -76,7 +76,7 @@ Get within a certain distance
 session.scalars(select(Document).filter(Document.embedding.l2_distance([1, 2, 3.1]) < 0.2))
 ```
 
-Add hnsw index
+Add vector index to speed up query
 
 ```python
 # vector index currently depends on tiflash
@@ -85,7 +85,6 @@ index = Index(
     'idx_embedding',
     func.vec_cosine_distance(Document.embedding),
     mysql_prefix="vector",
-    mysql_using="hnsw"
 )
 index.create(engine)
 ```
@@ -161,7 +160,7 @@ Get within a certain distance
 DocumentModel.select().where(DocumentModel.embedding.l2_distance([1, 2, 3.1]) < 0.5)
 ```
 
-Add hnsw index
+Add vector index to speed up query
 
 ```python
 # vector index currently depends on tiflash
@@ -169,7 +168,7 @@ db.execute_sql(SQL(
     "ALTER TABLE peewee_documents SET TIFLASH REPLICA 1;"
 ))
 DocumentModel.add_index(SQL(
-    "CREATE VECTOR INDEX idx_embedding ON peewee_documents ((vec_cosine_distance(embedding))) USING HNSW"
+    "CREATE VECTOR INDEX idx_embedding ON peewee_documents ((vec_cosine_distance(embedding)))"
 ))
 ```
 
