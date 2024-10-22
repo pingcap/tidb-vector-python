@@ -10,8 +10,7 @@ from ..config import TestConfig
 
 
 db_url = URL(
-    #"mysql+pymysql",
-    "tidb+mysqldb",
+    "tidb+pymysql",
     username=TestConfig.TIDB_USER,
     password=TestConfig.TIDB_PASSWORD,
     host=TestConfig.TIDB_HOST,
@@ -307,6 +306,7 @@ class TestSQLAlchemyWithDifferentDimensions:
             assert len(items) == 2
             assert items[1].distance == -14.0
 
+
 class TestSQLAlchemyDDL:
     def setup_class(self):
         Item2Model.__table__.drop(bind=engine, checkfirst=True)
@@ -324,12 +324,12 @@ class TestSQLAlchemyDDL:
         with Session() as session:
             # indexes
             l2_index = sqlalchemy_tidb.ddl.VectorIndex(
-                'idx_embedding_l2',
+                "idx_embedding_l2",
                 sqlalchemy.func.vec_l2_distance(Item2Model.__table__.c.embedding),
             )
             l2_index.create(engine)
             cos_index = sqlalchemy_tidb.ddl.VectorIndex(
-                'idx_embedding_cos',
+                "idx_embedding_cos",
                 sqlalchemy.func.vec_cosine_distance(Item2Model.__table__.c.embedding),
             )
             cos_index.create(engine)

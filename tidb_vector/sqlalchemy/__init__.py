@@ -8,7 +8,12 @@ from tidb_vector.utils import decode_vector, encode_vector
 _registry.register(
     "tidb.mysqldb",
     "tidb_vector.sqlalchemy.dialect",
-    "dialect",
+    "dialect_mysqldb",
+)
+_registry.register(
+    "tidb.pymysql",
+    "tidb_vector.sqlalchemy.dialect",
+    "dialect_pymysql",
 )
 
 
