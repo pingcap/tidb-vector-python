@@ -4,7 +4,6 @@ from .compiler import TiDBDDLCompiler
 
 
 class TiDBDialect_mysqldb(sqlalchemy_mysql.mysqldb.MySQLDialect_mysqldb):
-
     name = "tidb"
     driver = "mysqldb"
 

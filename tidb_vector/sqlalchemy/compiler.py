@@ -7,9 +7,8 @@ from .ddl import CreateTiFlashReplica, CreateVectorIndex
 class TiDBDDLCompiler(MySQLDDLCompiler):
     def visit_tiflash_replica(self, replica: CreateTiFlashReplica, **kw):
         # from IPython import embed;embed()
-        return 'ALTER TABLE {} SET TIFLASH REPLICA {}'.format(
-            replica.element.inner_table.name,
-            replica.element.replica_num
+        return "ALTER TABLE {} SET TIFLASH REPLICA {}".format(
+            replica.element.inner_table.name, replica.element.replica_num
         )
 
     def visit_create_vector_index(self, create: CreateVectorIndex, **kw):

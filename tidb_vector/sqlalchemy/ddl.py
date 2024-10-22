@@ -3,14 +3,20 @@ from typing import Any, Optional, Sequence, Union
 import sqlalchemy
 from sqlalchemy.sql.ddl import SchemaGenerator as SchemaGeneratorBase
 from sqlalchemy.sql.base import DialectKWArgs
-from sqlalchemy.sql.schema import ColumnCollectionMixin, HasConditionalDDL, SchemaItem, Table, ColumnElement
+from sqlalchemy.sql.schema import (
+    ColumnCollectionMixin,
+    HasConditionalDDL,
+    SchemaItem,
+    Table,
+    ColumnElement,
+)
 import sqlalchemy.exc as exc
 
 
 class TiFlashReplica(DialectKWArgs):
     """Represent the tiflash replica table attribute"""
 
-    __visit_name__ = 'tiflash_replica'
+    __visit_name__ = "tiflash_replica"
 
     @property
     def bind(self):
@@ -20,7 +26,9 @@ class TiFlashReplica(DialectKWArgs):
     def metadata(self):
         return self.inner_table.metadata
 
-    def __init__(self, inner_table: sqlalchemy.sql.schema.Table, num=1, *args, **kwargs) -> None:
+    def __init__(
+        self, inner_table: sqlalchemy.sql.schema.Table, num=1, *args, **kwargs
+    ) -> None:
         super().__init__()
         self.inner_table = inner_table
         self.replica_num = num
@@ -42,21 +50,19 @@ class TiFlashReplica(DialectKWArgs):
         raise NotImplementedError()
 
 
-class VectorIndex(
-    DialectKWArgs, ColumnCollectionMixin, HasConditionalDDL, SchemaItem
-):
-
+class VectorIndex(DialectKWArgs, ColumnCollectionMixin, HasConditionalDDL, SchemaItem):
     __visit_name__ = "vector_index"
 
     table: Optional[Table]
     expressions: Sequence[Union[str, ColumnElement[Any]]]
     _table_bound_expressions: Sequence[ColumnElement[Any]]
 
-    def __init__(self,
-                 name: Optional[str],
-                 expressions,
-                 _table: Optional[Table] = None,
-                 ) -> None:
+    def __init__(
+        self,
+        name: Optional[str],
+        expressions,
+        _table: Optional[Table] = None,
+    ) -> None:
         super().__init__()
         self.table = table = None
         if _table is not None:
@@ -109,8 +115,7 @@ class VectorIndex(
         :class:`.VectorIndex`, using the given
         :class:`.Connection` or :class:`.Engine`` for connectivity.
         """
-        bind._run_ddl_visitor(TiDBSchemaGenerator,
-                              self, checkfirst=checkfirst)
+        bind._run_ddl_visitor(TiDBSchemaGenerator, self, checkfirst=checkfirst)
 
     def drop(self, bind, checkfirst: bool = False) -> None:
         """Issue a ``DROP`` statement for this
@@ -143,16 +148,15 @@ class CreateVectorIndex(sqlalchemy.sql.ddl.CreateIndex):
 class TiDBSchemaGenerator(SchemaGeneratorBase):
     def __init__(self, dialect, connection, checkfirst=False, tables=None, **kwargs):
         super(TiDBSchemaGenerator, self).__init__(
-            dialect, connection, checkfirst, tables, **kwargs)
+            dialect, connection, checkfirst, tables, **kwargs
+        )
 
     def visit_tiflash_replica(self, replica, **kwargs):
         """
         replica: TiFlashReplica
         """
         with self.with_ddl_events(replica):
-            self.connection.execute(
-                CreateTiFlashReplica(replica, **kwargs)
-            )
+            self.connection.execute(CreateTiFlashReplica(replica, **kwargs))
 
     def visit_vector_index(self, index):
         """
