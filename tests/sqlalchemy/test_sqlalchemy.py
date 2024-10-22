@@ -4,8 +4,7 @@ import sqlalchemy
 from sqlalchemy import URL, create_engine, Column, Integer, select
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.exc import OperationalError
-from tidb_vector.sqlalchemy import VectorType
-import tidb_vector.sqlalchemy as sqlalchemy_tidb
+from tidb_vector.sqlalchemy import VectorType, VectorIndex
 from ..config import TestConfig
 
 
@@ -323,12 +322,12 @@ class TestSQLAlchemyDDL:
     def test_l2_distance(self):
         with Session() as session:
             # indexes
-            l2_index = sqlalchemy_tidb.ddl.VectorIndex(
+            l2_index = VectorIndex(
                 "idx_embedding_l2",
                 sqlalchemy.func.vec_l2_distance(Item2Model.__table__.c.embedding),
             )
             l2_index.create(engine)
-            cos_index = sqlalchemy_tidb.ddl.VectorIndex(
+            cos_index = VectorIndex(
                 "idx_embedding_cos",
                 sqlalchemy.func.vec_cosine_distance(Item2Model.__table__.c.embedding),
             )

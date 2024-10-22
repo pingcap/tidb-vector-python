@@ -4,6 +4,7 @@ from sqlalchemy.dialects import registry as _registry
 
 from tidb_vector.constants import MAX_DIMENSION_LENGTH, MIN_DIMENSION_LENGTH
 from tidb_vector.utils import decode_vector, encode_vector
+from .ddl import VectorIndex
 
 _registry.register(
     "tidb.mysqldb",
@@ -92,3 +93,8 @@ class VectorType(UserDefinedType):
             return func.VEC_NEGATIVE_INNER_PRODUCT(self, formatted_other).label(
                 "negative_inner_product"
             )
+
+__all__ = (
+    'VectorType',
+    'VectorIndex',
+)
