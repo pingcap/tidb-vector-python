@@ -1,8 +1,15 @@
 from sqlalchemy.types import UserDefinedType
 from sqlalchemy.sql import func
+from sqlalchemy.dialects import registry as _registry
 
 from tidb_vector.constants import MAX_DIMENSION_LENGTH, MIN_DIMENSION_LENGTH
 from tidb_vector.utils import decode_vector, encode_vector
+
+_registry.register(
+    "tidb.mysqldb",
+    "tidb_vector.sqlalchemy.dialect",
+    "dialect",
+)
 
 
 class VectorType(UserDefinedType):
