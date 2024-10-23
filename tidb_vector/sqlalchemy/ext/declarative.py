@@ -7,7 +7,6 @@ from ..ddl import Table, MetaData
 
 
 class TiDBDeclarativeMeta(DeclarativeMeta):
-
     def __new__(cls, name: str, bases, class_dict: Dict[str, Any]):
         # Overwrite __table_cls__ to make sure all create table use
         # the custom `..ddl.Table` class.
@@ -18,8 +17,9 @@ class TiDBDeclarativeMeta(DeclarativeMeta):
 
 
 def get_declarative_base(metadata: Optional[MetaData] = None):
-    assert isinstance(metadata, Optional[MetaData])
-    # ensure the metadata is created with type `..ddl.MetaData`
     if metadata is None:
         metadata = MetaData()
+    else:
+        # ensure the metadata is created with type `..ddl.MetaData`
+        assert isinstance(metadata, MetaData)
     return declarative_base(metadata=metadata, metaclass=TiDBDeclarativeMeta)
