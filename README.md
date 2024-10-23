@@ -36,11 +36,11 @@ Define table with vector field
 
 ```python
 from sqlalchemy import Column, Integer, create_engine, func
-from sqlalchemy.orm import declarative_base, Session
-from tidb_vector.sqlalchemy import VectorType, VectorIndex
+from sqlalchemy.orm import Session
+from tidb_vector.sqlalchemy import VectorType, VectorIndex, get_declarative_base
 
-engine = create_engine('mysql://****.root:******@gateway01.xxxxxx.shared.aws.tidbcloud.com:4000/test')
-Base = declarative_base()
+engine = create_engine('tidb+pymysql://****.root:******@gateway01.xxxxxx.shared.aws.tidbcloud.com:4000/test')
+Base = get_declarative_base()
 
 class Document(Base):
     __tablename__ = 'sqlalchemy_demo_documents'
@@ -52,20 +52,20 @@ class DocumentWithIndex(Base):
     __tablename__ = 'sqlalchemy_demo_documents_with_index'
     id = Column(Integer, primary_key=True)
     embedding = Column(VectorType(3))
+    __table_args__ = (
+        VectorIndex('idx_l2', text('(vec_l2_distance(embedding))')),
+    )
 
 Base.metadata.create_all(engine)
-
-vec_index = VectorIndex('idx_cos', func.vec_cos_distance(DocumentWithIndex.embedding))
-vec_index.create(engine)
-
 ```
 
 Insert vector data
 
 ```python
-test = Test(embedding=[1, 2, 3])
-session.add(test)
-session.commit()
+with Session(engine) as session:
+    test = Test(embedding=[1, 2, 3])
+    session.add(test)
+    session.commit()
 ```
 
 Get the nearest neighbors

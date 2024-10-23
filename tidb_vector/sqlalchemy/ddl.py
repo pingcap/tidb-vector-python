@@ -8,10 +8,58 @@ from sqlalchemy.sql.schema import (
     ColumnCollectionMixin,
     HasConditionalDDL,
     SchemaItem,
-    Table,
+    MetaData as MetaDataBase,
+    Table as TableBase,
     ColumnElement,
 )
 import sqlalchemy.exc as exc
+
+
+class MetaData(MetaDataBase):
+    """
+    A collection of :class:`.Table` objects and their associated schema constructs.
+    Overwrites the default implementation to use :class:`TiDBSchemaGenerator` and :class:`TiDBSchemaDropper`.
+    """
+
+    def create_all(self, bind, tables=None, checkfirst: bool = True) -> None:
+        bind._run_ddl_visitor(
+            TiDBSchemaGenerator, self, checkfirst=checkfirst, tables=tables
+        )
+
+    def drop_all(self, bind, tables=None, checkfirst: bool = True) -> None:
+        bind._run_ddl_visitor(
+            TiDBSchemaDropper, self, checkfirst=checkfirst, tables=tables
+        )
+
+
+class Table(TableBase):
+    """
+    Represent a table in a database.
+    Overwrites the default implementation to use :class:`TiDBSchemaGenerator` and :class:`TiDBSchemaDropper`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def create(self, bind, checkfirst: bool = False) -> None:
+        """Issue a ``CREATE`` statement for this
+        :class:`_schema.Table`, using the given
+        :class:`.Connection` or :class:`.Engine`
+        for connectivity.
+
+        Overwrites the default implementation to use :class:`TiDBSchemaGenerator`
+        """
+        bind._run_ddl_visitor(TiDBSchemaGenerator, self, checkfirst=checkfirst)
+
+    def drop(self, bind, checkfirst: bool = False) -> None:
+        """Issue a ``DROP`` statement for this
+        :class:`_schema.Table`, using the given
+        :class:`.Connection` or :class:`.Engine` for connectivity.
+
+        Overwrites the default implementation to use :class:`TiDBSchemaDropper`
+
+        """
+        bind._run_ddl_visitor(TiDBSchemaDropper, self, checkfirst=checkfirst)
 
 
 class TiFlashReplica(DialectKWArgs, SchemaItem):
@@ -171,11 +219,11 @@ class TiDBSchemaGenerator(SchemaGeneratorBase):
                 replica, new_num=replica.replica_num, **kwargs
             )._invoke_with(self.connection)
 
-    def visit_vector_index(self, index):
+    def visit_vector_index(self, index, create_ok=False):
         """
         index: VectorIndex
         """
-        if not self._can_create_index(index):
+        if not create_ok and not self._can_create_index(index):
             return
         with self.with_ddl_events(index):
             # Automatically add tiflash replica if not exist

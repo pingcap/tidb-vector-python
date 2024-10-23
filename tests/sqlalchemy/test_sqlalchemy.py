@@ -2,9 +2,14 @@ import pytest
 import numpy as np
 import sqlalchemy
 from sqlalchemy import URL, create_engine, Column, Integer, select, Index
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError
-from tidb_vector.sqlalchemy import VectorType, VectorIndex, TiFlashReplica
+from tidb_vector.sqlalchemy import (
+    VectorType,
+    VectorIndex,
+    TiFlashReplica,
+    get_declarative_base,
+)
 from ..config import TestConfig
 
 database_name = "test"
@@ -24,7 +29,7 @@ db_url = URL(
 
 engine = create_engine(db_url)
 Session = sessionmaker(bind=engine)
-Base = declarative_base()
+Base = get_declarative_base()
 
 
 class Item1Model(Base):
@@ -321,6 +326,14 @@ class TestSQLAlchemyDDL:
             session.query(Item2Model).delete()
             session.commit()
 
+    @staticmethod
+    def check_indexes(table, expect_indexes_name):
+        indexes = table.indexes
+        indexes_name = [index.name for index in indexes]
+        assert len(indexes) == len(expect_indexes_name)
+        for i in expect_indexes_name:
+            assert i in indexes_name
+
     def test_alter_tiflash_replica(self):
         # Add tiflash replica
         replica = TiFlashReplica(Item2Model.__table__, num=1)
@@ -362,6 +375,10 @@ class TestSQLAlchemyDDL:
             sqlalchemy.func.vec_cosine_distance(Item2Model.__table__.c.embedding),
         )
         cos_index.create(engine)
+
+        self.check_indexes(
+            Item2Model.__table__, ["idx_embedding_l2", "idx_embedding_cos"]
+        )
 
         with Session() as session:
             session.add_all(
@@ -414,16 +431,24 @@ class TestSQLAlchemyDDL:
             __tablename__ = "sqlalchemy_item3"
             id = Column(Integer, primary_key=True)
             embedding = Column(VectorType(dim=3))
-            idx = Index('idx', 'id'), # test for adding normal index
-            # l2_idx = VectorIndex(
-            #     "idx_embedding_l2", sqlalchemy.text("vec_l2_distance(embedding)")
-            # )
-            # cos_index = VectorIndex(
-            #     "idx_embedding_cos", sqlalchemy.text("vec_cosine_distance(embedding)")
-            # )
+            __table_args__ = (
+                Index("idx_id", "id"),
+                VectorIndex(
+                    "idx_embedding_l2", sqlalchemy.text("(vec_l2_distance(embedding))")
+                ),
+                VectorIndex(
+                    "idx_embedding_cos",
+                    sqlalchemy.text("(vec_cosine_distance(embedding))"),
+                ),
+            )
 
         Item3Model.__table__.drop(bind=engine, checkfirst=True)
         Item3Model.__table__.create(bind=engine)
+
+        self.check_indexes(
+            Item3Model.__table__, ["idx_id", "idx_embedding_l2", "idx_embedding_cos"]
+        )
+
         with Session() as session:
             session.add_all(
                 [Item3Model(embedding=[1, 2, 3]), Item3Model(embedding=[1, 2, 3.2])]

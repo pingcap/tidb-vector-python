@@ -4,7 +4,8 @@ from sqlalchemy.dialects import registry as _registry
 
 from tidb_vector.constants import MAX_DIMENSION_LENGTH, MIN_DIMENSION_LENGTH
 from tidb_vector.utils import decode_vector, encode_vector
-from .ddl import VectorIndex, TiFlashReplica
+from .ddl import VectorIndex, TiFlashReplica, Table, MetaData
+from .ext.declarative import get_declarative_base
 
 _registry.register(
     "tidb",
@@ -101,6 +102,9 @@ class VectorType(UserDefinedType):
 
 
 __all__ = (
+    "get_declarative_base",
+    "MetaData",
+    "Table",
     "VectorType",
     "VectorIndex",
     "TiFlashReplica",

@@ -1,9 +1,9 @@
 import os
 import dotenv
 
-from sqlalchemy import Column, Integer, create_engine, Text, func
-from sqlalchemy.orm import declarative_base, Session
-from tidb_vector.sqlalchemy import VectorType, VectorIndex
+from sqlalchemy import Column, Integer, create_engine, Text, text
+from sqlalchemy.orm import Session
+from tidb_vector.sqlalchemy import VectorType, VectorIndex, get_declarative_base
 
 dotenv.load_dotenv()
 
@@ -12,7 +12,7 @@ tidb_connection_string = os.environ['TIDB_DATABASE_URL']
 engine = create_engine(tidb_connection_string)
 
 # Step 2: Define a table with a vector column.
-Base = declarative_base()
+Base = get_declarative_base()
 
 
 class Document(Base):
@@ -28,12 +28,12 @@ class DocumentWithIndex(Base):
     id = Column(Integer, primary_key=True)
     content = Column(Text)
     embedding = Column(VectorType(3))
+    __table_args__ = (
+        VectorIndex('idx_cos', text('(vec_cosine_distance(embedding))')),
+    )
 
 Base.metadata.drop_all(engine)
 Base.metadata.create_all(engine)
-
-vec_index = VectorIndex('idx_cos', func.vec_cos_distance(DocumentWithIndex.embedding))
-vec_index.create(engine)
 
 # Step 3: Insert embeddings into the table.
 with Session(engine) as session:
