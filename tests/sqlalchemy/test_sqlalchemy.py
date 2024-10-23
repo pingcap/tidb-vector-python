@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import sqlalchemy
-from sqlalchemy import URL, create_engine, Column, Integer, select
+from sqlalchemy import URL, create_engine, Column, Integer, select, Index
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.exc import OperationalError
 from tidb_vector.sqlalchemy import VectorType, VectorIndex, TiFlashReplica
@@ -408,3 +408,60 @@ class TestSQLAlchemyDDL:
         # drop indexes
         l2_index.drop(engine)
         cos_index.drop(engine)
+
+    def test_query_with_inited_index(self):
+        class Item3Model(Base):
+            __tablename__ = "sqlalchemy_item3"
+            id = Column(Integer, primary_key=True)
+            embedding = Column(VectorType(dim=3))
+            idx = Index('idx', 'id'), # test for adding normal index
+            # l2_idx = VectorIndex(
+            #     "idx_embedding_l2", sqlalchemy.text("vec_l2_distance(embedding)")
+            # )
+            # cos_index = VectorIndex(
+            #     "idx_embedding_cos", sqlalchemy.text("vec_cosine_distance(embedding)")
+            # )
+
+        Item3Model.__table__.drop(bind=engine, checkfirst=True)
+        Item3Model.__table__.create(bind=engine)
+        with Session() as session:
+            session.add_all(
+                [Item3Model(embedding=[1, 2, 3]), Item3Model(embedding=[1, 2, 3.2])]
+            )
+            session.commit()
+
+            # l2 distance
+            result_l2 = session.scalars(
+                select(Item3Model).filter(
+                    Item3Model.embedding.l2_distance([1, 2, 3.1]) < 0.2
+                )
+            ).all()
+            assert len(result_l2) == 2
+
+            distance_l2 = Item3Model.embedding.l2_distance([1, 2, 3])
+            items_l2 = (
+                session.query(Item3Model.id, distance_l2.label("distance"))
+                .order_by(distance_l2)
+                .limit(5)
+                .all()
+            )
+            assert len(items_l2) == 2
+            assert items_l2[0].distance == 0.0
+
+            # cosine distance
+            result_cos = session.scalars(
+                select(Item3Model).filter(
+                    Item3Model.embedding.cosine_distance([1, 2, 3.1]) < 0.2
+                )
+            ).all()
+            assert len(result_cos) == 2
+
+            distance_cos = Item3Model.embedding.cosine_distance([1, 2, 3])
+            items_cos = (
+                session.query(Item3Model.id, distance_cos.label("distance"))
+                .order_by(distance_cos)
+                .limit(5)
+                .all()
+            )
+            assert len(items_cos) == 2
+            assert items_cos[0].distance == 0.0

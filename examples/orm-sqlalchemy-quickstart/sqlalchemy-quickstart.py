@@ -1,9 +1,9 @@
 import os
 import dotenv
 
-from sqlalchemy import Column, Integer, create_engine, Text
+from sqlalchemy import Column, Integer, create_engine, Text, func
 from sqlalchemy.orm import declarative_base, Session
-from tidb_vector.sqlalchemy import VectorType
+from tidb_vector.sqlalchemy import VectorType, VectorIndex
 
 dotenv.load_dotenv()
 
@@ -22,17 +22,18 @@ class Document(Base):
     embedding = Column(VectorType(3))
 
 
-# Or add HNSW index when creating table.
+# Or add HNSW index
 class DocumentWithIndex(Base):
     __tablename__ = 'sqlalchemy_demo_documents_with_index'
     id = Column(Integer, primary_key=True)
     content = Column(Text)
-    embedding = Column(VectorType(3), comment="hnsw(distance=cosine)")
-
+    embedding = Column(VectorType(3))
 
 Base.metadata.drop_all(engine)
 Base.metadata.create_all(engine)
 
+vec_index = VectorIndex('idx_cos', func.vec_cos_distance(DocumentWithIndex.embedding))
+vec_index.create(engine)
 
 # Step 3: Insert embeddings into the table.
 with Session(engine) as session:

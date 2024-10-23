@@ -7,6 +7,11 @@ from tidb_vector.utils import decode_vector, encode_vector
 from .ddl import VectorIndex, TiFlashReplica
 
 _registry.register(
+    "tidb",
+    "tidb_vector.sqlalchemy.dialect",
+    "dialect_pymysql",
+)
+_registry.register(
     "tidb.mysqldb",
     "tidb_vector.sqlalchemy.dialect",
     "dialect_mysqldb",

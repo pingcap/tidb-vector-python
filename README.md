@@ -35,25 +35,29 @@ Learn how to connect to TiDB Serverless in the [TiDB Cloud documentation](https:
 Define table with vector field
 
 ```python
-from sqlalchemy import Column, Integer, create_engine
-from sqlalchemy.orm import declarative_base
-from tidb_vector.sqlalchemy import VectorType
+from sqlalchemy import Column, Integer, create_engine, func
+from sqlalchemy.orm import declarative_base, Session
+from tidb_vector.sqlalchemy import VectorType, VectorIndex
 
 engine = create_engine('mysql://****.root:******@gateway01.xxxxxx.shared.aws.tidbcloud.com:4000/test')
 Base = declarative_base()
 
-class Test(Base):
-    __tablename__ = 'test'
+class Document(Base):
+    __tablename__ = 'sqlalchemy_demo_documents'
     id = Column(Integer, primary_key=True)
     embedding = Column(VectorType(3))
 
-# or add hnsw index when creating table
-class TestWithIndex(Base):
-    __tablename__ = 'test_with_index'
+# or add hnsw index
+class DocumentWithIndex(Base):
+    __tablename__ = 'sqlalchemy_demo_documents_with_index'
     id = Column(Integer, primary_key=True)
-    embedding = Column(VectorType(3), comment="hnsw(distance=l2)")
+    embedding = Column(VectorType(3))
 
 Base.metadata.create_all(engine)
+
+vec_index = VectorIndex('idx_cos', func.vec_cos_distance(DocumentWithIndex.embedding))
+vec_index.create(engine)
+
 ```
 
 Insert vector data
