@@ -2,9 +2,9 @@ import os
 import requests
 import dotenv
 
-from sqlalchemy import Column, Integer, String, create_engine
-from sqlalchemy.orm import Session, declarative_base
-from tidb_vector.sqlalchemy import VectorType
+from sqlalchemy import Column, Integer, String, create_engine, text as sqlalchemy_text
+from sqlalchemy.orm import Session
+from tidb_vector.sqlalchemy import VectorType, VectorIndex, get_declarative_base
 
 dotenv.load_dotenv()
 
@@ -35,7 +35,7 @@ engine = create_engine(url=TIDB_DATABASE_URL, pool_recycle=300)
 
 
 # Step 3. Create the vector table.
-Base = declarative_base()
+Base = get_declarative_base()
 
 
 class Document(Base):
@@ -46,8 +46,10 @@ class Document(Base):
     content_vec = Column(
         # DIMENSIONS is determined by the embedding model,
         # for Jina AI's jina-embeddings-v2-base-en model it's 768.
-        VectorType(dim=768),
-        comment="hnsw(distance=cosine)"
+        VectorType(dim=768)
+    )
+    __table_args__ = (
+        VectorIndex('idx_cos', sqlalchemy_text('(vec_cosine_distance(embedding))')),
     )
 
 
