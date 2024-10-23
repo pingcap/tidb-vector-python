@@ -1,4 +1,5 @@
 """Test TiDB Vector Search functionality."""
+
 from __future__ import annotations
 
 from tidb_vector.integrations.utils import extract_info_from_column_definition

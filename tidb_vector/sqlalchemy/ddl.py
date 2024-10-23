@@ -2,6 +2,7 @@ from typing import Any, Optional, Sequence, Union
 
 import sqlalchemy
 from sqlalchemy.sql.ddl import SchemaGenerator as SchemaGeneratorBase
+from sqlalchemy.sql.ddl import SchemaDropper as SchemaDropperBase
 from sqlalchemy.sql.base import DialectKWArgs
 from sqlalchemy.sql.schema import (
     ColumnCollectionMixin,
@@ -13,10 +14,12 @@ from sqlalchemy.sql.schema import (
 import sqlalchemy.exc as exc
 
 
-class TiFlashReplica(DialectKWArgs):
+class TiFlashReplica(DialectKWArgs, SchemaItem):
     """Represent the tiflash replica table attribute"""
 
     __visit_name__ = "tiflash_replica"
+
+    inner_table: Optional[Table]
 
     @property
     def bind(self):
@@ -26,9 +29,7 @@ class TiFlashReplica(DialectKWArgs):
     def metadata(self):
         return self.inner_table.metadata
 
-    def __init__(
-        self, inner_table: sqlalchemy.sql.schema.Table, num=1, *args, **kwargs
-    ) -> None:
+    def __init__(self, inner_table: Table, num=1, *args, **kwargs) -> None:
         super().__init__()
         self.inner_table = inner_table
         self.replica_num = num
@@ -36,18 +37,17 @@ class TiFlashReplica(DialectKWArgs):
         self.inner_table.info["has_tiflash_replica"] = True
 
     def create(self, bind=None):
-        """Issue a ``SET TIFLASH REPLICA`` statement"""
+        """Issue a ``ALTER TABLE ... SET TIFLASH REPLICA {num}`` statement"""
         if bind is None:
             bind = self.bind
         bind._run_ddl_visitor(TiDBSchemaGenerator, self)
 
     def drop(self, bind=None):
-        """Issue a ``SET TIFLASH REPLICA`` statement"""
+        """Issue a ``ALTER TABLE ... SET TIFLASH REPLICA 0`` statement"""
         if bind is None:
             bind = self.bind
-        # TODO: implement drop tiflash replica
-        # bind._run_ddl_visitor()
-        raise NotImplementedError()
+        bind._run_ddl_visitor(TiDBSchemaDropper, self)
+        self.replica_num = 0
 
 
 class VectorIndex(DialectKWArgs, ColumnCollectionMixin, HasConditionalDDL, SchemaItem):
@@ -56,6 +56,14 @@ class VectorIndex(DialectKWArgs, ColumnCollectionMixin, HasConditionalDDL, Schem
     table: Optional[Table]
     expressions: Sequence[Union[str, ColumnElement[Any]]]
     _table_bound_expressions: Sequence[ColumnElement[Any]]
+
+    @property
+    def bind(self):
+        return self.metadata.bind
+
+    @property
+    def metadata(self):
+        return self.table.metadata
 
     def __init__(
         self,
@@ -115,6 +123,8 @@ class VectorIndex(DialectKWArgs, ColumnCollectionMixin, HasConditionalDDL, Schem
         :class:`.VectorIndex`, using the given
         :class:`.Connection` or :class:`.Engine`` for connectivity.
         """
+        if bind is None:
+            bind = self.bind
         bind._run_ddl_visitor(TiDBSchemaGenerator, self, checkfirst=checkfirst)
 
     def drop(self, bind, checkfirst: bool = False) -> None:
@@ -122,18 +132,19 @@ class VectorIndex(DialectKWArgs, ColumnCollectionMixin, HasConditionalDDL, Schem
         :class:`.VectorIndex`, using the given
         :class:`.Connection` or :class:`.Engine` for connectivity.
         """
-        # bind._run_ddl_visitor(,
-        #                       self, checkfirst=checkfirst)
-        raise NotImplementedError()
+        if bind is None:
+            bind = self.bind
+        bind._run_ddl_visitor(TiDBSchemaDropper, self, checkfirst=checkfirst)
 
 
-class CreateTiFlashReplica(sqlalchemy.sql.ddl._CreateDropBase):
+class AlterTiFlashReplica(sqlalchemy.sql.ddl._CreateDropBase):
     """Represent a ``ALTER TABLE ... SET TIFLASH REPLICA ...`` statement."""
 
-    __visit_name__: str = "tiflash_replica"
+    __visit_name__: str = "alter_tiflash_replica"
 
-    def __init__(self, element):
-        super(CreateTiFlashReplica, self).__init__(element)
+    def __init__(self, element, new_num):
+        super().__init__(element)
+        self.new_num = new_num
 
 
 class CreateVectorIndex(sqlalchemy.sql.ddl.CreateIndex):
@@ -146,17 +157,19 @@ class CreateVectorIndex(sqlalchemy.sql.ddl.CreateIndex):
 
 
 class TiDBSchemaGenerator(SchemaGeneratorBase):
-    def __init__(self, dialect, connection, checkfirst=False, tables=None, **kwargs):
-        super(TiDBSchemaGenerator, self).__init__(
-            dialect, connection, checkfirst, tables, **kwargs
-        )
+    """Building logical CERATE ... statements."""
+
+    def __init__(self, dialect, connection, checkfirst=False, tables=None):
+        super().__init__(dialect, connection, checkfirst, tables)
 
     def visit_tiflash_replica(self, replica, **kwargs):
         """
         replica: TiFlashReplica
         """
         with self.with_ddl_events(replica):
-            self.connection.execute(CreateTiFlashReplica(replica, **kwargs))
+            AlterTiFlashReplica(
+                replica, new_num=replica.replica_num, **kwargs
+            )._invoke_with(self.connection)
 
     def visit_vector_index(self, index):
         """
@@ -167,7 +180,32 @@ class TiDBSchemaGenerator(SchemaGeneratorBase):
         with self.with_ddl_events(index):
             # Automatically add tiflash replica if not exist
             if not index.table.info.get("has_tiflash_replica", False):
-                replica = TiFlashReplica(index.table, 1)
-                CreateTiFlashReplica(replica)._invoke_with(self.connection)
+                num_replica = 1  # by default 1 replica
+                replica = TiFlashReplica(index.table, num_replica)
+                AlterTiFlashReplica(replica, new_num=num_replica)._invoke_with(
+                    self.connection
+                )
             # Create the vector index
             CreateVectorIndex(index)._invoke_with(self.connection)
+
+
+class TiDBSchemaDropper(SchemaDropperBase):
+    """Building logical DROP ... statements."""
+
+    def __init__(self, dialect, connection, checkfirst=False, tables=None, **kwargs):
+        super().__init__(dialect, connection, checkfirst, tables, **kwargs)
+
+    def visit_tiflash_replica(self, replica, **kwargs):
+        with self.with_ddl_events(replica):
+            # set the replica_num to new_num
+            AlterTiFlashReplica(replica, new_num=0)._invoke_with(self.connection)
+            # reset the table.info of has_tiflash_replica
+            del replica.inner_table.info["has_tiflash_replica"]
+
+    def visit_vector_index(self, index, if_exists=False):
+        # from IPython import embed;embed()
+        if not self._can_drop_index(index):
+            return
+        with self.with_ddl_events(index):
+            # Drop vector index is the same as dropping normal index
+            sqlalchemy.sql.ddl.DropIndex(index, if_exists)._invoke_with(self.connection)

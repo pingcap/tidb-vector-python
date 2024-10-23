@@ -4,7 +4,7 @@ from sqlalchemy.dialects import registry as _registry
 
 from tidb_vector.constants import MAX_DIMENSION_LENGTH, MIN_DIMENSION_LENGTH
 from tidb_vector.utils import decode_vector, encode_vector
-from .ddl import VectorIndex
+from .ddl import VectorIndex, TiFlashReplica
 
 _registry.register(
     "tidb.mysqldb",
@@ -29,7 +29,7 @@ class VectorType(UserDefinedType):
         if dim is not None and not isinstance(dim, int):
             raise ValueError("expected dimension to be an integer or None")
 
-        # tidb vector dimention length has limitation
+        # tidb vector dimension length has limitation
         if dim is not None and (
             dim < MIN_DIMENSION_LENGTH or dim > MAX_DIMENSION_LENGTH
         ):
@@ -94,7 +94,9 @@ class VectorType(UserDefinedType):
                 "negative_inner_product"
             )
 
+
 __all__ = (
-    'VectorType',
-    'VectorIndex',
+    "VectorType",
+    "VectorIndex",
+    "TiFlashReplica",
 )

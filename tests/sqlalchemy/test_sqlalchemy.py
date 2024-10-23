@@ -4,20 +4,22 @@ import sqlalchemy
 from sqlalchemy import URL, create_engine, Column, Integer, select
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.exc import OperationalError
-from tidb_vector.sqlalchemy import VectorType, VectorIndex
+from tidb_vector.sqlalchemy import VectorType, VectorIndex, TiFlashReplica
 from ..config import TestConfig
 
-
+database_name = "test"
 db_url = URL(
     "tidb+pymysql",
     username=TestConfig.TIDB_USER,
     password=TestConfig.TIDB_PASSWORD,
     host=TestConfig.TIDB_HOST,
     port=TestConfig.TIDB_PORT,
-    database="test",
-    query={"ssl_verify_cert": True, "ssl_verify_identity": True}
-    if TestConfig.TIDB_SSL
-    else {},
+    database=database_name,
+    query=(
+        {"ssl_verify_cert": True, "ssl_verify_identity": True}
+        if TestConfig.TIDB_SSL
+        else {}
+    ),
 )
 
 engine = create_engine(db_url)
@@ -319,23 +321,52 @@ class TestSQLAlchemyDDL:
             session.query(Item2Model).delete()
             session.commit()
 
-    def test_l2_distance(self):
+    def test_alter_tiflash_replica(self):
+        # Add tiflash replica
+        replica = TiFlashReplica(Item2Model.__table__, num=1)
+        replica.create(engine)
+        sql = sqlalchemy.text(
+            f"""
+        SELECT TABLE_SCHEMA,TABLE_NAME,REPLICA_COUNT
+        FROM INFORMATION_SCHEMA.TIFLASH_REPLICA
+        WHERE TABLE_SCHEMA="{database_name}" AND TABLE_NAME="{Item2Model.__tablename__}"
+        """
+        )
         with Session() as session:
-            # indexes
-            l2_index = VectorIndex(
-                "idx_embedding_l2",
-                sqlalchemy.func.vec_l2_distance(Item2Model.__table__.c.embedding),
-            )
-            l2_index.create(engine)
-            cos_index = VectorIndex(
-                "idx_embedding_cos",
-                sqlalchemy.func.vec_cosine_distance(Item2Model.__table__.c.embedding),
-            )
-            cos_index.create(engine)
+            rs = session.execute(sql)
+            for r in rs:
+                assert r.TABLE_SCHEMA == database_name
+                assert r.TABLE_NAME == Item2Model.__tablename__
+                assert r.REPLICA_COUNT == 1
+        assert Item2Model.__table__.info["has_tiflash_replica"]
 
-            item1 = Item2Model(embedding=[1, 2, 3])
-            item2 = Item2Model(embedding=[1, 2, 3.2])
-            session.add_all([item1, item2])
+        # Drop tiflash replica
+        replica.drop(engine)
+        with Session() as session:
+            rs = session.execute(sql)
+            for r in rs:
+                assert r.TABLE_SCHEMA == database_name
+                assert r.TABLE_NAME == Item2Model.__tablename__
+                assert r.REPLICA_COUNT == 0
+        assert not Item2Model.__table__.info.get("has_tiflash_replica", False)
+
+    def test_query_with_index(self):
+        # indexes
+        l2_index = VectorIndex(
+            "idx_embedding_l2",
+            sqlalchemy.func.vec_l2_distance(Item2Model.__table__.c.embedding),
+        )
+        l2_index.create(engine)
+        cos_index = VectorIndex(
+            "idx_embedding_cos",
+            sqlalchemy.func.vec_cosine_distance(Item2Model.__table__.c.embedding),
+        )
+        cos_index.create(engine)
+
+        with Session() as session:
+            session.add_all(
+                [Item2Model(embedding=[1, 2, 3]), Item2Model(embedding=[1, 2, 3.2])]
+            )
             session.commit()
 
             # l2 distance
@@ -373,3 +404,7 @@ class TestSQLAlchemyDDL:
             )
             assert len(items_cos) == 2
             assert items_cos[0].distance == 0.0
+
+        # drop indexes
+        l2_index.drop(engine)
+        cos_index.drop(engine)

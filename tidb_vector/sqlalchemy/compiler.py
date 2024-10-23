@@ -1,14 +1,14 @@
 from sqlalchemy.dialects.mysql.base import MySQLDDLCompiler
 from sqlalchemy.sql import elements, operators, functions
 
-from .ddl import CreateTiFlashReplica, CreateVectorIndex
+from .ddl import AlterTiFlashReplica, CreateVectorIndex
 
 
 class TiDBDDLCompiler(MySQLDDLCompiler):
-    def visit_tiflash_replica(self, replica: CreateTiFlashReplica, **kw):
+    def visit_alter_tiflash_replica(self, replica: AlterTiFlashReplica, **kw):
         # from IPython import embed;embed()
         return "ALTER TABLE {} SET TIFLASH REPLICA {}".format(
-            replica.element.inner_table.name, replica.element.replica_num
+            replica.element.inner_table.name, replica.new_num
         )
 
     def visit_create_vector_index(self, create: CreateVectorIndex, **kw):
