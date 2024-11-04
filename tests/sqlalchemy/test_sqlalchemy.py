@@ -3,7 +3,8 @@ import numpy as np
 from sqlalchemy import URL, create_engine, Column, Integer, select
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.exc import OperationalError
-from tidb_vector.sqlalchemy import VectorType
+from tidb_vector.sqlalchemy import VectorType, VectorAdaptor
+import tidb_vector
 from ..config import TestConfig
 
 
@@ -14,9 +15,11 @@ db_url = URL(
     host=TestConfig.TIDB_HOST,
     port=TestConfig.TIDB_PORT,
     database="test",
-    query={"ssl_verify_cert": True, "ssl_verify_identity": True}
-    if TestConfig.TIDB_SSL
-    else {},
+    query=(
+        {"ssl_verify_cert": True, "ssl_verify_identity": True}
+        if TestConfig.TIDB_SSL
+        else {}
+    ),
 )
 
 engine = create_engine(db_url)
@@ -52,6 +55,15 @@ class TestSQLAlchemy:
     def test_insert_get_record(self):
         with Session() as session:
             item1 = Item1Model(embedding=[1, 2, 3])
+            session.add(item1)
+            session.commit()
+            item1 = session.query(Item1Model).first()
+            assert np.array_equal(item1.embedding, np.array([1, 2, 3]))
+            assert item1.embedding.dtype == np.float32
+
+    def test_insert_get_record_np(self):
+        with Session() as session:
+            item1 = Item1Model(embedding=np.array([1, 2, 3]))
             session.add(item1)
             session.commit()
             item1 = session.query(Item1Model).first()
@@ -303,3 +315,73 @@ class TestSQLAlchemyWithDifferentDimensions:
             )
             assert len(items) == 2
             assert items[1].distance == -14.0
+
+
+class TestSQLAlchemyAdaptor:
+    def setup_class(self):
+        Item1Model.__table__.drop(bind=engine, checkfirst=True)
+        Item1Model.__table__.create(bind=engine)
+        Item2Model.__table__.drop(bind=engine, checkfirst=True)
+        Item2Model.__table__.create(bind=engine)
+
+    def teardown_class(self):
+        Item1Model.__table__.drop(bind=engine, checkfirst=True)
+        Item2Model.__table__.drop(bind=engine, checkfirst=True)
+
+    def test_create_index_on_dyn_vector(self):
+        adaptor = VectorAdaptor(engine)
+        with pytest.raises(ValueError):
+            adaptor.create_vector_index(
+                Item1Model.embedding, distance_metric=tidb_vector.DistanceMetric.L2
+            )
+        assert adaptor.has_vector_index(Item1Model.embedding) is False
+
+    def test_create_index_on_fixed_vector(self):
+        adaptor = VectorAdaptor(engine)
+        adaptor.create_vector_index(
+            Item2Model.embedding, distance_metric=tidb_vector.DistanceMetric.L2
+        )
+        assert adaptor.has_vector_index(Item2Model.embedding) is True
+
+        with pytest.raises(Exception):
+            adaptor.create_vector_index(
+                Item2Model.embedding, distance_metric=tidb_vector.DistanceMetric.L2
+            )
+
+        assert adaptor.has_vector_index(Item2Model.embedding) is True
+
+        adaptor.create_vector_index(
+            Item2Model.embedding,
+            distance_metric=tidb_vector.DistanceMetric.L2,
+            skip_existing=True,
+        )
+
+        adaptor.create_vector_index(
+            Item2Model.embedding,
+            distance_metric=tidb_vector.DistanceMetric.COSINE,
+            skip_existing=True,
+        )
+
+    def test_index_and_search(self):
+        adaptor = VectorAdaptor(engine)
+        adaptor.create_vector_index(
+            Item2Model.embedding, distance_metric=tidb_vector.DistanceMetric.L2
+        )
+        assert adaptor.has_vector_index(Item2Model.embedding) is True
+
+        with Session() as session:
+            session.add_all(
+                [Item2Model(embedding=[1, 2, 3]), Item2Model(embedding=[1, 2, 3.2])]
+            )
+            session.commit()
+
+            # l2 distance
+            distance = Item2Model.embedding.cosine_distance([1, 2, 3])
+            items = (
+                session.query(Item2Model.id, distance.label("distance"))
+                .order_by(distance)
+                .limit(5)
+                .all()
+            )
+            assert len(items) == 2
+            assert items[0].distance == 0.0
