@@ -6,7 +6,7 @@ import tidb_vector.utils
 
 class VectorType(sqlalchemy.types.UserDefinedType):
     """
-    Represents a user-defined type for storing vector in TiDB
+    Represents a vector column type in TiDB.
     """
 
     dim: typing.Optional[int]
