@@ -2,19 +2,13 @@
 
 Use TiDB Vector Search with Python.
 
-## Installation
-
-```bash
-pip install tidb-vector
-```
-
 ## Usage
 
 TiDB is a SQL database so that this package introduces Vector Search capability for Python ORMs:
 
 - [#SQLAlchemy](#sqlalchemy)
-- [#Django](#django)
 - [#Peewee](#peewee)
+- [#Django](#django)
 
 Pick one that you are familiar with to get started. If you are not using any of them, we recommend [#SQLAlchemy](#sqlalchemy).
 
@@ -24,13 +18,18 @@ We also provide a Vector Search client for simple usage:
 
 ### SQLAlchemy
 
+Install:
+
 ```bash
 pip install tidb-vector sqlalchemy pymysql
 ```
 
+Usage:
+
 ```python
-from sqlalchemy import Integer, Text, Column
+from sqlalchemy import Integer, Column
 from sqlalchemy import create_engine, select
+from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import Session, declarative_base
 
 import tidb_vector
@@ -44,15 +43,15 @@ Base = declarative_base()
 class Doc(Base):
     __tablename__ = "doc"
     id = Column(Integer, primary_key=True)
-    embedding = Column(VectorType(3)) # Vector with 3 dimensions
-    content = Column(Text)
+    embedding = Column(VectorType(dim=3))
+    content = Column(LONGTEXT)
 
 
 # Create empty table
 Base.metadata.drop_all(engine)  # clean data from last run
 Base.metadata.create_all(engine)
 
-# Create index using L2 distance
+# Create index for L2 distance
 adaptor = VectorAdaptor(engine)
 adaptor.create_vector_index(
     Doc.embedding, tidb_vector.DistanceMetric.L2, skip_existing=True
@@ -69,7 +68,7 @@ with Session(engine) as session:
 with Session(engine) as session:
     results = session.execute(
         select(Doc.id, Doc.content)
-        .order_by(Doc.embedding.cosine_distance([1, 2, 3]))
+        .order_by(Doc.embedding.l2_distance([1, 2, 3]))
         .limit(1)
     ).all()
     print(results)
@@ -78,8 +77,8 @@ with Session(engine) as session:
 with Session(engine) as session:
     results = session.execute(
         select(Doc.id, Doc.content)
-        .where(Doc.id > 2)
-        .order_by(Doc.embedding.cosine_distance([1, 2, 3]))
+        .where(Doc.content == "dog")
+        .order_by(Doc.embedding.l2_distance([1, 2, 3]))
         .limit(1)
     ).all()
     print(results)
@@ -87,7 +86,81 @@ with Session(engine) as session:
 
 ### Django
 
-To use vector field in Django, you need to use [`django-tidb`](https://github.com/pingcap/django-tidb?tab=readme-ov-file#vector-beta).
+> [!TIP]
+>
+> Django is a full-featured web framework, not just an ORM. The following usage introducutions are provided for existing Django users.
+>
+> For new users to get started, consider using SQLAlchemy or Peewee.
+
+Install:
+
+```bash
+pip install 'django-tidb[vector]~=5.0.0' 'django~=5.0.0'  mysqlclient
+```
+
+Usage:
+
+1\. Configure `django_tidb` as engine, like:
+
+```python
+DATABASES = {
+    'default': {
+        'ENGINE': 'django_tidb',
+        'NAME': 'django',
+        'USER': 'root',
+        'PASSWORD': '',
+        'HOST': '127.0.0.1',
+        'PORT': 4000,
+    },
+}
+```
+
+2\. Define a model with a vector field and vector index:
+
+```python
+from django.db import models
+from django_tidb.fields.vector import VectorField, VectorIndex, L2Distance
+
+class Doc(models.Model):
+    id = models.IntegerField(primary_key=True)
+    embedding = VectorField(dimensions=3)
+    content = models.TextField()
+    class Meta:
+        indexes = [VectorIndex(L2Distance("embedding"), name="idx")]
+```
+
+3\. Insert data:
+
+```python
+Doc.objects.create(id=1, content="dog", embedding=[1, 2, 1])
+Doc.objects.create(id=2, content="fish", embedding=[1, 2, 4])
+Doc.objects.create(id=3, content="tree", embedding=[1, 0, 0])
+```
+
+4\. Perform Vector Search for Top K=1:
+
+```python
+queryset = (
+    Doc.objects
+        .order_by(L2Distance("embedding", [1, 2, 3]))
+        .values("id", "content")[:1]
+)
+print(queryset)
+```
+
+5\. Perform filtered Vector Search by adding a Where Clause:
+
+```python
+queryset = (
+     Doc.objects
+          .filter(content="dog")
+          .order_by(L2Distance("embedding", [1, 2, 3]))
+          .values("id", "content")[:1]
+)
+print(queryset)
+```
+
+For more details, see [django-tidb](https://github.com/pingcap/django-tidb?tab=readme-ov-file#vector-beta).
 
 ### Peewee
 
