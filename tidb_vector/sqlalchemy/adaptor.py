@@ -41,7 +41,34 @@ class VectorAdaptor:
         skip_existing: bool = False,
     ):
         """
-        Create the index for the vector column.
+        Create vector index for the vector column.
+
+        Parameters
+        ----------
+        column : sqlalchemy.Column
+            The column for which the vector index is to be created.
+
+        distance_metric : tidb_vector.DistanceMetric
+            The distance metric to be used for the vector index.
+                Available values are:
+                - tidb_vector.DistanceMetric.L2
+                - tidb_vector.DistanceMetric.COSINE
+
+        skip_existing : bool
+            If True, skips creating the index if it already exists. Default is False.
+
+        Raises
+        ------
+        ValueError
+            If the vector column does not have a fixed dimension.
+
+        ValueError
+            If the column is not a vector column.
+
+        Note
+        ----
+        If you want to use high-avaliability columnar storage feature, use raw SQL instead.
+
         """
 
         self._check_vector_column(column)
@@ -65,7 +92,7 @@ class VectorAdaptor:
             )
 
             query = sqlalchemy.text(f"ALTER TABLE {table_name} SET TIFLASH REPLICA 1")
-            conn.execute(query)
+                conn.execute(query)
 
             query = sqlalchemy.text(
                 f"""
