@@ -318,13 +318,13 @@ class TestSQLAlchemyWithDifferentDimensions:
 
 
 class TestSQLAlchemyAdaptor:
-    def setup_class(self):
+    def setup_method(self):
         Item1Model.__table__.drop(bind=engine, checkfirst=True)
         Item1Model.__table__.create(bind=engine)
         Item2Model.__table__.drop(bind=engine, checkfirst=True)
         Item2Model.__table__.create(bind=engine)
 
-    def teardown_class(self):
+    def teardown_method(self):
         Item1Model.__table__.drop(bind=engine, checkfirst=True)
         Item2Model.__table__.drop(bind=engine, checkfirst=True)
 
