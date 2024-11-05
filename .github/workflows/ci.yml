@@ -23,19 +23,19 @@ jobs:
 
       - name: Run lint
         run: |
-           tox -e lint
+          tox -e lint
 
   tests:
     strategy:
       fail-fast: false
       matrix:
         python-version:
-          - '3.12'
+          - "3.12"
     name: py${{ matrix.python-version }}_test
     runs-on: ubuntu-latest
     services:
       tidb:
-        image: wangdi4zm/tind:v7.5.3-vector-index
+        image: wangdi4zm/tind:v8.4.0-vector-index
         ports:
           - 4000:4000
     steps:

@@ -1,8 +1,6 @@
 # tidb-vector-python
 
-This is a Python client for TiDB Vector.
-
-> Now only TiDB Cloud Serverless cluster support vector data type, see this [docs](https://docs.pingcap.com/tidbcloud/vector-search-overview?utm_source=github&utm_medium=tidb-vector-python) for more information.
+Use TiDB Vector Search with Python.
 
 ## Installation
 
@@ -12,74 +10,79 @@ pip install tidb-vector
 
 ## Usage
 
-TiDB vector supports below distance functions:
+TiDB is a SQL database so that this package introduces Vector Search capability for Python ORMs:
 
-- `L1Distance`
-- `L2Distance`
-- `CosineDistance`
-- `NegativeInnerProduct`
+- [#SQLAlchemy](#sqlalchemy)
+- [#Django](#django)
+- [#Peewee](#peewee)
 
-It also supports using hnsw index with l2 or cosine distance to speed up the search, for more details see [Vector Search Indexes in TiDB](https://docs.pingcap.com/tidbcloud/vector-search-index)
+Pick one that you are familiar with to get started. If you are not using any of them, we recommend [#SQLAlchemy](#sqlalchemy).
 
-Supports following orm or framework:
+We also provide a Vector Search client for simple usage:
 
-- [SQLAlchemy](#sqlalchemy)
-- [Django](#django)
-- [Peewee](#peewee)
-- [TiDB Vector Client](#tidb-vector-client)
+- [#TiDB Vector Client](#tidb-vector-client)
 
 ### SQLAlchemy
 
-Learn how to connect to TiDB Serverless in the [TiDB Cloud documentation](https://docs.pingcap.com/tidbcloud/dev-guide-sample-application-python-sqlalchemy).
-
-Define table with vector field
+```bash
+pip install tidb-vector sqlalchemy pymysql
+```
 
 ```python
-from sqlalchemy import Column, Integer, create_engine
-from sqlalchemy.orm import declarative_base
-from tidb_vector.sqlalchemy import VectorType
+from sqlalchemy import Integer, Text, Column
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session, declarative_base
 
-engine = create_engine('mysql://****.root:******@gateway01.xxxxxx.shared.aws.tidbcloud.com:4000/test')
+import tidb_vector
+from tidb_vector.sqlalchemy import VectorType, VectorAdaptor
+
+engine = create_engine("mysql+pymysql://root@127.0.0.1:4000/test")
 Base = declarative_base()
 
-class Test(Base):
-    __tablename__ = 'test'
-    id = Column(Integer, primary_key=True)
-    embedding = Column(VectorType(3))
 
-# or add hnsw index when creating table
-class TestWithIndex(Base):
-    __tablename__ = 'test_with_index'
+# Define table schema
+class Doc(Base):
+    __tablename__ = "doc"
     id = Column(Integer, primary_key=True)
-    embedding = Column(VectorType(3), comment="hnsw(distance=l2)")
+    embedding = Column(VectorType(3)) # Vector with 3 dimensions
+    content = Column(Text)
 
+
+# Create empty table
+Base.metadata.drop_all(engine)  # clean data from last run
 Base.metadata.create_all(engine)
-```
 
-Insert vector data
+# Create index using L2 distance
+adaptor = VectorAdaptor(engine)
+adaptor.create_vector_index(
+    Doc.embedding, tidb_vector.DistanceMetric.L2, skip_existing=True
+)
 
-```python
-test = Test(embedding=[1, 2, 3])
-session.add(test)
-session.commit()
-```
+# Insert content with vectors
+with Session(engine) as session:
+    session.add(Doc(id=1, content="dog", embedding=[1, 2, 1]))
+    session.add(Doc(id=2, content="fish", embedding=[1, 2, 4]))
+    session.add(Doc(id=3, content="tree", embedding=[1, 0, 0]))
+    session.commit()
 
-Get the nearest neighbors
+# Perform Vector Search for Top K=1
+with Session(engine) as session:
+    results = session.execute(
+        select(Doc.id, Doc.content)
+        .order_by(Doc.embedding.cosine_distance([1, 2, 3]))
+        .limit(1)
+    ).all()
+    print(results)
 
-```python
-session.scalars(select(Test).order_by(Test.embedding.l2_distance([1, 2, 3.1])).limit(5))
-```
-
-Get the distance
-
-```python
-session.scalars(select(Test.embedding.l2_distance([1, 2, 3.1])))
-```
-
-Get within a certain distance
-
-```python
-session.scalars(select(Test).filter(Test.embedding.l2_distance([1, 2, 3.1]) < 0.2))
+# Perform filtered Vector Search by adding a Where Clause:
+with Session(engine) as session:
+    results = session.execute(
+        select(Doc.id, Doc.content)
+        .where(Doc.id > 2)
+        .order_by(Doc.embedding.cosine_distance([1, 2, 3]))
+        .limit(1)
+    ).all()
+    print(results)
 ```
 
 ### Django
@@ -165,7 +168,7 @@ TestModel.select().where(TestModel.embedding.l2_distance([1, 2, 3.1]) < 0.5)
 
 ### TiDB Vector Client
 
-Within the framework, you can directly utilize the built-in `TiDBVectorClient`, as demonstrated by integrations like [Langchain](https://python.langchain.com/docs/integrations/vectorstores/tidb_vector) and  [Llama index](https://docs.llamaindex.ai/en/stable/community/integrations/vector_stores.html#using-a-vector-store-as-an-index),  to seamlessly interact with TiDB Vector. This approach abstracts away the need to manage the underlying ORM, simplifying your interaction with the vector store.
+Within the framework, you can directly utilize the built-in `TiDBVectorClient`, as demonstrated by integrations like [Langchain](https://python.langchain.com/docs/integrations/vectorstores/tidb_vector) and [Llama index](https://docs.llamaindex.ai/en/stable/community/integrations/vector_stores.html#using-a-vector-store-as-an-index), to seamlessly interact with TiDB Vector. This approach abstracts away the need to manage the underlying ORM, simplifying your interaction with the vector store.
 
 We provide `TiDBVectorClient` which is based on sqlalchemy, you need to use `pip install tidb-vector[client]` to install it.
 
@@ -252,4 +255,5 @@ There are some examples to show how to use the tidb-vector-python to interact wi
 for more examples, see the [examples](./examples) directory.
 
 ## Contributing
+
 Please feel free to reach out to the maintainers if you have any questions or need help with the project. Before contributing, please read the [CONTRIBUTING.md](./CONTRIBUTING.md) file.
