@@ -86,6 +86,12 @@ with Session(engine) as session:
 
 ### Django
 
+> [!TIP]
+>
+> Django is a full-featured web framework, not just an ORM. The following usage introducutions are provided for existing Django users.
+>
+> For new users to get started, consider using SQLAlchemy or Peewee.
+
 Install:
 
 ```bash
