@@ -92,7 +92,7 @@ class VectorAdaptor:
             )
 
             query = sqlalchemy.text(f"ALTER TABLE {table_name} SET TIFLASH REPLICA 1")
-                conn.execute(query)
+            conn.execute(query)
 
             query = sqlalchemy.text(
                 f"""
