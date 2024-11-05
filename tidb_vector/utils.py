@@ -13,7 +13,7 @@ def encode_vector(value: typing.Union[np.ndarray, typing.List[float]], dim=None)
     if isinstance(value, np.ndarray):
         if value.ndim != 1:
             raise ValueError("expected ndim to be 1")
-        return f"[{", ".join(map(str, value))}]"
+        return f"[{','.join(map(str, value))}]"
 
     return str(value)
 
