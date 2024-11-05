@@ -1,6 +1,6 @@
 # tidb-vector-python
 
-Use TiDB Vector Search using Python.
+Use TiDB Vector Search with Python.
 
 ## Installation
 
