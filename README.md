@@ -95,7 +95,7 @@ with Session(engine) as session:
 Install:
 
 ```bash
-pip install 'django-tidb[vector]' django mysqlclient
+pip install 'django-tidb[vector]~=5.0.0' 'django~=5.0.0'  mysqlclient
 ```
 
 Usage:
