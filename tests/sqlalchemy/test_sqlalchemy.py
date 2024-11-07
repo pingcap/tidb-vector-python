@@ -1,3 +1,4 @@
+from locale import normalize
 import pytest
 import numpy as np
 import sqlalchemy
@@ -39,6 +40,9 @@ class Item2Model(Base):
     id = Column(Integer, primary_key=True)
     embedding = Column(VectorType(dim=3))
 
+    # __table_args__ = {
+    #     "mysql_tiflash_replica": "1",
+    # }
 
 class TestSQLAlchemy:
     def setup_class(self):
@@ -397,6 +401,51 @@ class TestSQLAlchemyVectorIndex:
     def teardown_class(self):
         Item2Model.__table__.drop(bind=engine, checkfirst=True)
 
+    def test_create_table_statement(self):
+        # Define a table using `sqlalchemy.schema.Table`
+        tbl = sqlalchemy.schema.Table(
+            'mytable',
+            Base.metadata,
+            Column('id', Integer),
+            mysql_tiflash_replica='1',
+        )
+        compiled = CreateTable(tbl).compile(dialect=engine.dialect)
+        normalized = compiled.string.replace("\n", "").replace("\t", "").strip()
+        assert normalized == "CREATE TABLE mytable (id INTEGER)"
+
+        # Define a table with tiflash replica using `sqlalchemy.schema.Table`
+        tbl = sqlalchemy.schema.Table(
+            'mytable',
+            Base.metadata,
+            Column('id', Integer),
+            mysql_tiflash_replica='1',
+        )
+        from sqlalchemy.sql.ddl import CreateTable
+        compiled = CreateTable(tbl).compile(dialect=engine.dialect)
+        normalized = compiled.string.replace("\n", "").replace("\t", "").strip()
+        assert normalized == "CREATE TABLE mytable (id INTEGER)TIFLASH_REPLICA=1"
+        
+        # Define a table inheriting from `Base`
+        class Item3Model(Base):
+            __tablename__ = "sqlalchemy_item3"
+            id = Column(Integer, primary_key=True)
+            embedding = Column(VectorType(dim=3))
+        compiled = CreateTable(Item3Model.__table__).compile(dialect=engine.dialect)
+        normalized = compiled.string.replace("\n", "").replace("\t", "").strip()
+        assert normalized == "CREATE TABLE sqlalchemy_item3 (id INTEGER NOT NULL AUTO_INCREMENT, embedding VECTOR(3), PRIMARY KEY (id))"
+
+        # Define a table inheriting from `Base` with tiflash replica using `__table_args__`
+        class Item3Model(Base):
+            __tablename__ = "sqlalchemy_item3"
+            id = Column(Integer, primary_key=True)
+            embedding = Column(VectorType(dim=3))
+            __table_args__ = {
+                "mysql_tiflash_replica": "1",
+            }
+        compiled = CreateTable(Item3Model.__table__).compile(dialect=engine.dialect)
+        normalized = compiled.string.replace("\n", "").replace("\t", "").strip()
+        assert normalized == "CREATE TABLE sqlalchemy_item3 (id INTEGER NOT NULL AUTO_INCREMENT, embedding VECTOR(3), PRIMARY KEY (id))TIFLASH_REPLICA=1"
+
     def test_create_vector_index_statement(self):
         from sqlalchemy.sql.ddl import CreateIndex
         l2_index = VectorIndex(
@@ -404,20 +453,20 @@ class TestSQLAlchemyVectorIndex:
             sqlalchemy.func.vec_l2_distance(Item2Model.__table__.c.embedding),
         )
         compiled = CreateIndex(l2_index).compile(dialect=engine.dialect)
-        assert compiled.string == "CREATE VECTOR INDEX idx_embedding_l2 ON sqlalchemy_item2 ((vec_l2_distance(embedding))) ADD_TIFLASH_ON_DEMAND"
+        assert compiled.string == "CREATE VECTOR INDEX idx_embedding_l2 ON sqlalchemy_item2 ((vec_l2_distance(embedding)))"
 
         cos_index = VectorIndex(
             "idx_embedding_cos",
             sqlalchemy.func.vec_cosine_distance(Item2Model.__table__.c.embedding),
         )
         compiled = CreateIndex(cos_index).compile(dialect=engine.dialect)
-        assert compiled.string == "CREATE VECTOR INDEX idx_embedding_cos ON sqlalchemy_item2 ((vec_cosine_distance(embedding))) ADD_TIFLASH_ON_DEMAND"
+        assert compiled.string == "CREATE VECTOR INDEX idx_embedding_cos ON sqlalchemy_item2 ((vec_cosine_distance(embedding)))"
 
         # non-vector index
         normal_index = sqlalchemy.schema.Index("idx_unique", Item2Model.__table__.c.id, unique=True)
         compiled = CreateIndex(normal_index).compile(dialect=engine.dialect)
         assert compiled.string == "CREATE UNIQUE INDEX idx_unique ON sqlalchemy_item2 (id)"
-
+    
     def test_query_with_index(self):
         # indexes
         l2_index = VectorIndex(
