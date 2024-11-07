@@ -40,9 +40,6 @@ class Item2Model(Base):
     id = Column(Integer, primary_key=True)
     embedding = Column(VectorType(dim=3))
 
-    # __table_args__ = {
-    #     "mysql_tiflash_replica": "1",
-    # }
 
 class TestSQLAlchemy:
     def setup_class(self):
