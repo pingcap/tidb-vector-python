@@ -123,6 +123,7 @@ class Doc(Model):
 # Create empty table and index for L2 distance
 db.drop_tables([Doc])  # clean data from last run
 db.create_tables([Doc])
+# For cosine distance, use tidb_vector.DistanceMetric.COSINE
 VectorAdaptor(db).create_vector_index(Doc.embedding, tidb_vector.DistanceMetric.L2)
 
 # Insert content with vectors
@@ -137,6 +138,7 @@ Doc.insert_many(
 # Perform Vector Search for Top K=1
 cursor = (
     Doc.select(Doc.id, Doc.content)
+    # For cosine distance, use Doc.embedding.cosine_distance(...)
     .order_by(Doc.embedding.l2_distance([1, 2, 3]))
     .limit(1)
 )
