@@ -413,6 +413,11 @@ class TestSQLAlchemyVectorIndex:
         compiled = CreateIndex(cos_index).compile(dialect=engine.dialect)
         assert compiled.string == "CREATE VECTOR INDEX idx_embedding_cos ON sqlalchemy_item2 ((vec_cosine_distance(embedding))) ADD_TIFLASH_ON_DEMAND"
 
+        # non-vector index
+        normal_index = sqlalchemy.schema.Index("idx_unique", Item2Model.__table__.c.id, unique=True)
+        compiled = CreateIndex(normal_index).compile(dialect=engine.dialect)
+        assert compiled.string == "CREATE UNIQUE INDEX idx_unique ON sqlalchemy_item2 (id)"
+
     def test_query_with_index(self):
         # indexes
         l2_index = VectorIndex(
