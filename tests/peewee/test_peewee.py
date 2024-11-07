@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
 from peewee import MySQLDatabase, Model, OperationalError
-from tidb_vector.peewee import VectorField
+import tidb_vector
+from tidb_vector.peewee import VectorField, VectorAdaptor
 from ..config import TestConfig
 
 
@@ -273,3 +274,67 @@ class TestPeeweeWithExplicitDimensions:
         assert items.count() == 1
         assert items.get().id == item.id
         assert items[0].distance == -14
+
+
+class TestPeeweeAdaptor:
+    def setup_method(self):
+        db.drop_tables([Item1Model, Item2Model])
+        db.create_tables([Item1Model, Item2Model])
+
+    def teardown_method(self):
+        db.drop_tables([Item1Model, Item2Model])
+
+    def test_create_index_on_dyn_vector(self):
+        adaptor = VectorAdaptor(db)
+        with pytest.raises(ValueError):
+            adaptor.create_vector_index(
+                Item1Model.embedding, distance_metric=tidb_vector.DistanceMetric.L2
+            )
+        assert adaptor.has_vector_index(Item1Model.embedding) is False
+
+    def test_create_index_on_fixed_vector(self):
+        adaptor = VectorAdaptor(db)
+        adaptor.create_vector_index(
+            Item2Model.embedding, distance_metric=tidb_vector.DistanceMetric.L2
+        )
+        assert adaptor.has_vector_index(Item2Model.embedding) is True
+
+        with pytest.raises(Exception):
+            adaptor.create_vector_index(
+                Item2Model.embedding, distance_metric=tidb_vector.DistanceMetric.L2
+            )
+
+        assert adaptor.has_vector_index(Item2Model.embedding) is True
+
+        adaptor.create_vector_index(
+            Item2Model.embedding,
+            distance_metric=tidb_vector.DistanceMetric.L2,
+            skip_existing=True,
+        )
+
+        adaptor.create_vector_index(
+            Item2Model.embedding,
+            distance_metric=tidb_vector.DistanceMetric.COSINE,
+            skip_existing=True,
+        )
+
+    def test_index_and_search(self):
+        adaptor = VectorAdaptor(db)
+        adaptor.create_vector_index(
+            Item2Model.embedding, distance_metric=tidb_vector.DistanceMetric.L2
+        )
+        assert adaptor.has_vector_index(Item2Model.embedding) is True
+
+        Item2Model.insert_many(
+            [
+                {"embedding": [1, 2, 3]},
+                {"embedding": [1, 2, 3.2]},
+            ]
+        ).execute()
+
+        distance = Item2Model.embedding.cosine_distance([1, 2, 3])
+        items = (
+            Item2Model.select(distance.alias("distance")).order_by(distance).limit(5)
+        )
+        assert items.count() == 2
+        assert items[0].distance == 0.0

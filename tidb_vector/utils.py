@@ -1,9 +1,8 @@
-import typing
-
 import numpy as np
+import tidb_vector
 
 
-def encode_vector(value: typing.Union[np.ndarray, typing.List[float]], dim=None):
+def encode_vector(value: tidb_vector.VectorDataType, dim=None):
     if value is None:
         return value
 
