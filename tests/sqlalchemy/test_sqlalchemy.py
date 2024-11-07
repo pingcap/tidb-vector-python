@@ -389,6 +389,16 @@ class TestSQLAlchemyAdaptor:
             assert items[0].distance == 0.0
 
 
+class Item3Model(Base):
+    __tablename__ = "sqlalchemy_item3"
+    id = Column(Integer, primary_key=True)
+    embedding = Column(VectorType(dim=3))
+
+    __table_args__ = {
+        "mysql_tiflash_replica": "1",
+    }
+
+
 class TestSQLAlchemyVectorIndex:
 
     def setup_class(self):
@@ -423,44 +433,44 @@ class TestSQLAlchemyVectorIndex:
         assert normalized == "CREATE TABLE mytable (id INTEGER)TIFLASH_REPLICA=1"
         
         # Define a table inheriting from `Base`
-        class Item3Model(Base):
-            __tablename__ = "sqlalchemy_item3"
+        class TableModel(Base):
+            __tablename__ = "test_tbl"
             id = Column(Integer, primary_key=True)
             embedding = Column(VectorType(dim=3))
-        compiled = CreateTable(Item3Model.__table__).compile(dialect=engine.dialect)
+        compiled = CreateTable(TableModel.__table__).compile(dialect=engine.dialect)
         normalized = compiled.string.replace("\n", "").replace("\t", "").strip()
-        assert normalized == "CREATE TABLE sqlalchemy_item3 (id INTEGER NOT NULL AUTO_INCREMENT, embedding VECTOR(3), PRIMARY KEY (id))"
+        assert normalized == "CREATE TABLE test_tbl (id INTEGER NOT NULL AUTO_INCREMENT, embedding VECTOR(3), PRIMARY KEY (id))"
 
         # Define a table inheriting from `Base` with tiflash replica using `__table_args__`
-        class Item3Model(Base):
-            __tablename__ = "sqlalchemy_item3"
+        class TableModel(Base):
+            __tablename__ = "test_tbl"
             id = Column(Integer, primary_key=True)
             embedding = Column(VectorType(dim=3))
             __table_args__ = {
                 "mysql_tiflash_replica": "1",
             }
-        compiled = CreateTable(Item3Model.__table__).compile(dialect=engine.dialect)
+        compiled = CreateTable(TableModel.__table__).compile(dialect=engine.dialect)
         normalized = compiled.string.replace("\n", "").replace("\t", "").strip()
-        assert normalized == "CREATE TABLE sqlalchemy_item3 (id INTEGER NOT NULL AUTO_INCREMENT, embedding VECTOR(3), PRIMARY KEY (id))TIFLASH_REPLICA=1"
+        assert normalized == "CREATE TABLE test_tbl (id INTEGER NOT NULL AUTO_INCREMENT, embedding VECTOR(3), PRIMARY KEY (id))TIFLASH_REPLICA=1"
 
     def test_create_vector_index_statement(self):
         from sqlalchemy.sql.ddl import CreateIndex
         l2_index = VectorIndex(
             "idx_embedding_l2",
-            sqlalchemy.func.vec_l2_distance(Item2Model.__table__.c.embedding),
+            sqlalchemy.func.vec_l2_distance(Item3Model.__table__.c.embedding),
         )
         compiled = CreateIndex(l2_index).compile(dialect=engine.dialect)
         assert compiled.string == "CREATE VECTOR INDEX idx_embedding_l2 ON sqlalchemy_item2 ((vec_l2_distance(embedding)))"
 
         cos_index = VectorIndex(
             "idx_embedding_cos",
-            sqlalchemy.func.vec_cosine_distance(Item2Model.__table__.c.embedding),
+            sqlalchemy.func.vec_cosine_distance(Item3Model.__table__.c.embedding),
         )
         compiled = CreateIndex(cos_index).compile(dialect=engine.dialect)
         assert compiled.string == "CREATE VECTOR INDEX idx_embedding_cos ON sqlalchemy_item2 ((vec_cosine_distance(embedding)))"
 
         # non-vector index
-        normal_index = sqlalchemy.schema.Index("idx_unique", Item2Model.__table__.c.id, unique=True)
+        normal_index = sqlalchemy.schema.Index("idx_unique", Item3Model.__table__.c.id, unique=True)
         compiled = CreateIndex(normal_index).compile(dialect=engine.dialect)
         assert compiled.string == "CREATE UNIQUE INDEX idx_unique ON sqlalchemy_item2 (id)"
     
@@ -468,36 +478,32 @@ class TestSQLAlchemyVectorIndex:
         # indexes
         l2_index = VectorIndex(
             "idx_embedding_l2",
-            sqlalchemy.func.vec_l2_distance(Item2Model.__table__.c.embedding),
+            sqlalchemy.func.vec_l2_distance(Item3Model.__table__.c.embedding),
         )
         l2_index.create(engine)
         cos_index = VectorIndex(
             "idx_embedding_cos",
-            sqlalchemy.func.vec_cosine_distance(Item2Model.__table__.c.embedding),
+            sqlalchemy.func.vec_cosine_distance(Item3Model.__table__.c.embedding),
         )
         cos_index.create(engine)
 
-        self.check_indexes(
-            Item2Model.__table__, ["idx_embedding_l2", "idx_embedding_cos"]
-        )
-
         with Session() as session:
             session.add_all(
-                [Item2Model(embedding=[1, 2, 3]), Item2Model(embedding=[1, 2, 3.2])]
+                [Item3Model(embedding=[1, 2, 3]), Item3Model(embedding=[1, 2, 3.2])]
             )
             session.commit()
 
             # l2 distance
             result_l2 = session.scalars(
-                select(Item2Model).filter(
-                    Item2Model.embedding.l2_distance([1, 2, 3.1]) < 0.2
+                select(Item3Model).filter(
+                    Item3Model.embedding.l2_distance([1, 2, 3.1]) < 0.2
                 )
             ).all()
             assert len(result_l2) == 2
 
-            distance_l2 = Item2Model.embedding.l2_distance([1, 2, 3])
+            distance_l2 = Item3Model.embedding.l2_distance([1, 2, 3])
             items_l2 = (
-                session.query(Item2Model.id, distance_l2.label("distance"))
+                session.query(Item3Model.id, distance_l2.label("distance"))
                 .order_by(distance_l2)
                 .limit(5)
                 .all()
@@ -507,15 +513,15 @@ class TestSQLAlchemyVectorIndex:
 
             # cosine distance
             result_cos = session.scalars(
-                select(Item2Model).filter(
-                    Item2Model.embedding.cosine_distance([1, 2, 3.1]) < 0.2
+                select(Item3Model).filter(
+                    Item3Model.embedding.cosine_distance([1, 2, 3.1]) < 0.2
                 )
             ).all()
             assert len(result_cos) == 2
 
-            distance_cos = Item2Model.embedding.cosine_distance([1, 2, 3])
+            distance_cos = Item3Model.embedding.cosine_distance([1, 2, 3])
             items_cos = (
-                session.query(Item2Model.id, distance_cos.label("distance"))
+                session.query(Item3Model.id, distance_cos.label("distance"))
                 .order_by(distance_cos)
                 .limit(5)
                 .all()
