@@ -5,7 +5,6 @@ from tidb_vector.utils import decode_vector, encode_vector
 
 
 class VectorField(Field):
-
     dimensions: Optional[int]
 
     field_type = "VECTOR"
