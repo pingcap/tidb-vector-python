@@ -1,4 +1,4 @@
-import typing
+from typing import Optional
 import sqlalchemy
 import tidb_vector
 import tidb_vector.utils
@@ -9,11 +9,11 @@ class VectorType(sqlalchemy.types.UserDefinedType):
     Represents a vector column type in TiDB.
     """
 
-    dim: typing.Optional[int]
+    dim: Optional[int]
 
     cache_ok = True
 
-    def __init__(self, dim=None):
+    def __init__(self, dim: Optional[int] = None):
         if dim is not None and not isinstance(dim, int):
             raise ValueError("expected dimension to be an integer or None")
 
@@ -60,25 +60,25 @@ class VectorType(sqlalchemy.types.UserDefinedType):
     class comparator_factory(sqlalchemy.types.UserDefinedType.Comparator):
         """Returns a comparator factory that provides the distance functions."""
 
-        def l1_distance(self, other):
+        def l1_distance(self, other: tidb_vector.VectorDataType):
             formatted_other = tidb_vector.utils.encode_vector(other)
             return sqlalchemy.func.VEC_L1_DISTANCE(self, formatted_other).label(
                 "l1_distance"
             )
 
-        def l2_distance(self, other):
+        def l2_distance(self, other: tidb_vector.VectorDataType):
             formatted_other = tidb_vector.utils.encode_vector(other)
             return sqlalchemy.func.VEC_L2_DISTANCE(self, formatted_other).label(
                 "l2_distance"
             )
 
-        def cosine_distance(self, other):
+        def cosine_distance(self, other: tidb_vector.VectorDataType):
             formatted_other = tidb_vector.utils.encode_vector(other)
             return sqlalchemy.func.VEC_COSINE_DISTANCE(self, formatted_other).label(
                 "cosine_distance"
             )
 
-        def negative_inner_product(self, other):
+        def negative_inner_product(self, other: tidb_vector.VectorDataType):
             formatted_other = tidb_vector.utils.encode_vector(other)
             return sqlalchemy.func.VEC_NEGATIVE_INNER_PRODUCT(
                 self, formatted_other

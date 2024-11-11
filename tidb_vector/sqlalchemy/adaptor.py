@@ -1,6 +1,6 @@
 import sqlalchemy
 import tidb_vector
-import tidb_vector.sqlalchemy
+from .vector_type import VectorType
 
 
 class VectorAdaptor:
@@ -14,7 +14,7 @@ class VectorAdaptor:
         self.engine = engine
 
     def _check_vector_column(self, column: sqlalchemy.Column):
-        if not isinstance(column.type, tidb_vector.sqlalchemy.VectorType):
+        if not isinstance(column.type, VectorType):
             raise ValueError("Not a vector column")
 
     def has_vector_index(self, column: sqlalchemy.Column) -> bool:

@@ -52,9 +52,9 @@ Base.metadata.drop_all(engine)  # clean data from last run
 Base.metadata.create_all(engine)
 
 # Create index for L2 distance
-adaptor = VectorAdaptor(engine)
-adaptor.create_vector_index(
+VectorAdaptor(engine).create_vector_index(
     Doc.embedding, tidb_vector.DistanceMetric.L2, skip_existing=True
+    # For cosine distance, use tidb_vector.DistanceMetric.COSINE
 )
 
 # Insert content with vectors
@@ -69,6 +69,7 @@ with Session(engine) as session:
     results = session.execute(
         select(Doc.id, Doc.content)
         .order_by(Doc.embedding.l2_distance([1, 2, 3]))
+        # For cosine distance, use Doc.embedding.cosine_distance(...)
         .limit(1)
     ).all()
     print(results)
@@ -82,6 +83,78 @@ with Session(engine) as session:
         .limit(1)
     ).all()
     print(results)
+```
+
+### Peewee
+
+Install:
+
+```bash
+pip install tidb-vector peewee pymysql
+```
+
+Usage:
+
+```python
+import tidb_vector
+from peewee import Model, MySQLDatabase, IntegerField, TextField
+from tidb_vector.peewee import VectorField, VectorAdaptor
+
+db = MySQLDatabase(
+    database="test",
+    user="root",
+    password="",
+    host="127.0.0.1",
+    port=4000,
+)
+
+
+# Define table schema
+class Doc(Model):
+    class Meta:
+        database = db
+        table_name = "peewee_test"
+
+    id = IntegerField(primary_key=True)
+    embedding = VectorField(3)
+    content = TextField()
+
+
+# Create empty table and index for L2 distance
+db.drop_tables([Doc])  # clean data from last run
+db.create_tables([Doc])
+# For cosine distance, use tidb_vector.DistanceMetric.COSINE
+VectorAdaptor(db).create_vector_index(Doc.embedding, tidb_vector.DistanceMetric.L2)
+
+# Insert content with vectors
+Doc.insert_many(
+    [
+        {"id": 1, "content": "dog", "embedding": [1, 2, 1]},
+        {"id": 2, "content": "fish", "embedding": [1, 2, 4]},
+        {"id": 3, "content": "tree", "embedding": [1, 0, 0]},
+    ]
+).execute()
+
+# Perform Vector Search for Top K=1
+cursor = (
+    Doc.select(Doc.id, Doc.content)
+    # For cosine distance, use Doc.embedding.cosine_distance(...)
+    .order_by(Doc.embedding.l2_distance([1, 2, 3]))
+    .limit(1)
+)
+for row in cursor:
+    print(row.id, row.content)
+
+
+# Perform filtered Vector Search by adding a Where Clause:
+cursor = (
+    Doc.select(Doc.id, Doc.content)
+    .where(Doc.content == "dog")
+    .order_by(Doc.embedding.l2_distance([1, 2, 3]))
+    .limit(1)
+)
+for row in cursor:
+    print(row.id, row.content)
 ```
 
 ### Django
@@ -161,83 +234,6 @@ print(queryset)
 ```
 
 For more details, see [django-tidb](https://github.com/pingcap/django-tidb?tab=readme-ov-file#vector-beta).
-
-### Peewee
-
-Define peewee table with vector field
-
-```python
-from peewee import Model, MySQLDatabase
-from tidb_vector.peewee import VectorField
-
-# Using `pymysql` as the driver
-connect_kwargs = {
-    'ssl_verify_cert': True,
-    'ssl_verify_identity': True,
-}
-
-# Using `mysqlclient` as the driver
-connect_kwargs = {
-    'ssl_mode': 'VERIFY_IDENTITY',
-    'ssl': {
-        # Root certificate default path
-        # https://docs.pingcap.com/tidbcloud/secure-connections-to-serverless-clusters/#root-certificate-default-path
-        'ca': '/etc/ssl/cert.pem'  # MacOS
-    },
-}
-
-db = MySQLDatabase(
-    'peewee_test',
-    user='xxxxxxxx.root',
-    password='xxxxxxxx',
-    host='xxxxxxxx.shared.aws.tidbcloud.com',
-    port=4000,
-    **connect_kwargs,
-)
-
-class TestModel(Model):
-    class Meta:
-        database = db
-        table_name = 'test'
-
-    embedding = VectorField(3)
-
-# or add hnsw index when creating table
-class TestModelWithIndex(Model):
-    class Meta:
-        database = db
-        table_name = 'test_with_index'
-
-    embedding = VectorField(3, constraints=[SQL("COMMENT 'hnsw(distance=l2)'")])
-
-
-db.connect()
-db.create_tables([TestModel, TestModelWithIndex])
-```
-
-Insert vector data
-
-```python
-TestModel.create(embedding=[1, 2, 3])
-```
-
-Get the nearest neighbors
-
-```python
-TestModel.select().order_by(TestModel.embedding.l2_distance([1, 2, 3.1])).limit(5)
-```
-
-Get the distance
-
-```python
-TestModel.select(TestModel.embedding.cosine_distance([1, 2, 3.1]).alias('distance'))
-```
-
-Get within a certain distance
-
-```python
-TestModel.select().where(TestModel.embedding.l2_distance([1, 2, 3.1]) < 0.5)
-```
 
 ### TiDB Vector Client
 
