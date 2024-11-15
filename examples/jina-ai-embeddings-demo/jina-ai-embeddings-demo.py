@@ -47,7 +47,6 @@ class Document(Base):
         # DIMENSIONS is determined by the embedding model,
         # for Jina AI's jina-embeddings-v2-base-en model it's 768.
         VectorType(dim=768),
-        comment="hnsw(distance=cosine)"
     )
 
 
