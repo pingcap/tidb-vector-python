@@ -1,15 +1,43 @@
 import os
 import dotenv
 
-from sqlalchemy import Column, Integer, create_engine, Text
+from sqlalchemy import Column, Integer, create_engine, Text, URL
 from sqlalchemy.orm import declarative_base, Session
-from tidb_vector.sqlalchemy import VectorType
+from tidb_vector.sqlalchemy import VectorType, VectorAdaptor
+from tidb_vector.constants import DistanceMetric
 
 dotenv.load_dotenv()
 
 # Step 1: Connect to TiDB using SQLAlchemy.
-tidb_connection_string = os.environ['TIDB_DATABASE_URL']
-engine = create_engine(tidb_connection_string)
+
+# Using `pymysql` as the driver.
+drivername = 'mysql+pymysql'
+ssl_kwargs = {
+    'ssl_verify_cert': 'true',
+    'ssl_verify_identity': 'true',
+}
+
+# Using `mysqlclient` as the driver.
+# drivername = 'mysql+mysqldb'
+# ssl_kwargs = {
+#     'ssl_mode': 'VERIFY_IDENTITY',
+#     'ssl': {
+#         # Root certificate default path
+#         # https://docs.pingcap.com/tidbcloud/secure-connections-to-serverless-clusters/#root-certificate-default-path
+#         'ca': os.environ.get('TIDB_CA_PATH', '/path/to/ca.pem'),
+#     },
+# }
+
+engine = create_engine(URL.create(
+    drivername=drivername,
+    username=os.environ['TIDB_USERNAME'],
+    password=os.environ['TIDB_PASSWORD'],
+    host=os.environ['TIDB_HOST'],
+    port=os.environ['TIDB_PORT'],
+    database=os.environ['TIDB_DATABASE'],
+    query=ssl_kwargs if os.environ.get('TIDB_SSL', 'false').lower() == 'true' else {},
+))
+
 
 # Step 2: Define a table with a vector column.
 Base = declarative_base()
@@ -27,11 +55,16 @@ class DocumentWithIndex(Base):
     __tablename__ = 'sqlalchemy_demo_documents_with_index'
     id = Column(Integer, primary_key=True)
     content = Column(Text)
-    embedding = Column(VectorType(3), comment="hnsw(distance=cosine)")
+    embedding = Column(VectorType(3))
 
 
 Base.metadata.drop_all(engine)
 Base.metadata.create_all(engine)
+VectorAdaptor(engine).create_vector_index(
+    DocumentWithIndex.embedding,
+    DistanceMetric.COSINE,
+    skip_existing=True,
+)
 
 
 # Step 3: Insert embeddings into the table.

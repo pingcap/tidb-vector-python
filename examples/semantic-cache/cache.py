@@ -57,7 +57,6 @@ class Cache(SQLModel, table=True):
         sa_column=Column(
             VectorType(768),
             default=None,
-            comment="hnsw(distance=l2)",
             nullable=False,
         )
     )

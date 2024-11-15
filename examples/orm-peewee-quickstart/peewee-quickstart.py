@@ -1,21 +1,22 @@
 import os
 import dotenv
 
-from peewee import Model, MySQLDatabase, SQL, TextField
-from tidb_vector.peewee import VectorField
+from tidb_vector.peewee import VectorField, VectorAdaptor
+from tidb_vector.constants import DistanceMetric
+from peewee import Model, MySQLDatabase, TextField
 
 dotenv.load_dotenv()
 
 # Step 1: Connect to TiDB using Peewee.
 
 # Using `pymysql` as the driver.
-connect_kwargs = {
+ssl_kwargs = {
     'ssl_verify_cert': True,
     'ssl_verify_identity': True,
 }
 
 # Using `mysqlclient` as the driver.
-# connect_kwargs = {
+# ssl_kwargs = {
 #     'ssl_mode': 'VERIFY_IDENTITY',
 #     'ssl': {
 #         # Root certificate default path
@@ -30,7 +31,7 @@ db = MySQLDatabase(
     password=os.environ.get('TIDB_PASSWORD', ''),
     host=os.environ.get('TIDB_HOST', 'localhost'),
     port=int(os.environ.get('TIDB_PORT', '4000')),
-    **connect_kwargs,
+    **ssl_kwargs if os.environ.get('TIDB_SSL', 'false').lower() == 'true' else {},
 )
 
 
@@ -53,12 +54,16 @@ class DocumentWithIndex(Model):
         table_name = 'peewee_demo_documents_with_index'
 
     content = TextField()
-    embedding = VectorField(3, constraints=[SQL("COMMENT 'hnsw(distance=cosine)'")])
+    embedding = VectorField(3)
 
 
 db.connect()
 db.drop_tables([Document, DocumentWithIndex])
 db.create_tables([Document, DocumentWithIndex])
+VectorAdaptor(db).create_vector_index(
+    DocumentWithIndex.embedding,
+    DistanceMetric.COSINE,
+)
 
 # Step 3. Insert embeddings into the table.
 Document.create(content='dog', embedding=[1, 2, 1])
