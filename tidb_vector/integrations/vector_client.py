@@ -139,7 +139,7 @@ class TiDBVectorClient:
             elif actual_dim != self._vector_dimension:
                 raise EmbeddingColumnMismatchError(
                     existing_col=f"vector({actual_dim})",
-                    expected_col=f"vector({self._vector_dimension})",
+                    expected_col=f"vector({self._vector_dimension})",  # noqa: E225
                 )
 
         if actual_distance_strategy is not None:

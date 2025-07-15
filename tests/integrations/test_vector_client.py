@@ -16,8 +16,8 @@ try:
 
     TABLE_NAME = "tidb_vector_test"
     CONNECTION_STRING = (
-        f"mysql+pymysql://{TestConfig.TIDB_USER}:{TestConfig.TIDB_PASSWORD}"
-        f"@{TestConfig.TIDB_HOST}:4000/test"
+        f"mysql+pymysql://{TestConfig.TIDB_USER}:{TestConfig.TIDB_PASSWORD}"  # noqa: E231
+        f"@{TestConfig.TIDB_HOST}:4000/test"  # noqa: E231
     )
     if TestConfig.TIDB_SSL:
         CONNECTION_STRING += "?ssl_verify_cert=true&ssl_verify_identity=true"
