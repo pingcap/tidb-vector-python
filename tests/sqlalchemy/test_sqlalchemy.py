@@ -1,9 +1,10 @@
 import pytest
 import numpy as np
+import sqlalchemy
 from sqlalchemy import URL, create_engine, Column, Integer, select
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.exc import OperationalError
-from tidb_vector.sqlalchemy import VectorType, VectorAdaptor
+from tidb_vector.sqlalchemy import VectorType, VectorAdaptor, VectorIndex
 import tidb_vector
 from ..config import TestConfig
 
@@ -385,3 +386,97 @@ class TestSQLAlchemyAdaptor:
             )
             assert len(items) == 2
             assert items[0].distance == 0.0
+
+
+class TestSQLAlchemyVectorIndex:
+
+    def setup_class(self):
+        Item2Model.__table__.drop(bind=engine, checkfirst=True)
+        Item2Model.__table__.create(bind=engine)
+
+    def teardown_class(self):
+        Item2Model.__table__.drop(bind=engine, checkfirst=True)
+
+    def test_create_vector_index_statement(self):
+        from sqlalchemy.sql.ddl import CreateIndex
+        l2_index = VectorIndex(
+            "idx_embedding_l2",
+            sqlalchemy.func.vec_l2_distance(Item2Model.__table__.c.embedding),
+        )
+        compiled = CreateIndex(l2_index).compile(dialect=engine.dialect)
+        assert compiled.string == "CREATE VECTOR INDEX idx_embedding_l2 ON sqlalchemy_item2 ((vec_l2_distance(embedding))) ADD_TIFLASH_ON_DEMAND"
+
+        cos_index = VectorIndex(
+            "idx_embedding_cos",
+            sqlalchemy.func.vec_cosine_distance(Item2Model.__table__.c.embedding),
+        )
+        compiled = CreateIndex(cos_index).compile(dialect=engine.dialect)
+        assert compiled.string == "CREATE VECTOR INDEX idx_embedding_cos ON sqlalchemy_item2 ((vec_cosine_distance(embedding))) ADD_TIFLASH_ON_DEMAND"
+
+        # non-vector index
+        normal_index = sqlalchemy.schema.Index("idx_unique", Item2Model.__table__.c.id, unique=True)
+        compiled = CreateIndex(normal_index).compile(dialect=engine.dialect)
+        assert compiled.string == "CREATE UNIQUE INDEX idx_unique ON sqlalchemy_item2 (id)"
+
+    def test_query_with_index(self):
+        # indexes
+        l2_index = VectorIndex(
+            "idx_embedding_l2",
+            sqlalchemy.func.vec_l2_distance(Item2Model.__table__.c.embedding),
+        )
+        l2_index.create(engine)
+        cos_index = VectorIndex(
+            "idx_embedding_cos",
+            sqlalchemy.func.vec_cosine_distance(Item2Model.__table__.c.embedding),
+        )
+        cos_index.create(engine)
+
+        self.check_indexes(
+            Item2Model.__table__, ["idx_embedding_l2", "idx_embedding_cos"]
+        )
+
+        with Session() as session:
+            session.add_all(
+                [Item2Model(embedding=[1, 2, 3]), Item2Model(embedding=[1, 2, 3.2])]
+            )
+            session.commit()
+
+            # l2 distance
+            result_l2 = session.scalars(
+                select(Item2Model).filter(
+                    Item2Model.embedding.l2_distance([1, 2, 3.1]) < 0.2
+                )
+            ).all()
+            assert len(result_l2) == 2
+
+            distance_l2 = Item2Model.embedding.l2_distance([1, 2, 3])
+            items_l2 = (
+                session.query(Item2Model.id, distance_l2.label("distance"))
+                .order_by(distance_l2)
+                .limit(5)
+                .all()
+            )
+            assert len(items_l2) == 2
+            assert items_l2[0].distance == 0.0
+
+            # cosine distance
+            result_cos = session.scalars(
+                select(Item2Model).filter(
+                    Item2Model.embedding.cosine_distance([1, 2, 3.1]) < 0.2
+                )
+            ).all()
+            assert len(result_cos) == 2
+
+            distance_cos = Item2Model.embedding.cosine_distance([1, 2, 3])
+            items_cos = (
+                session.query(Item2Model.id, distance_cos.label("distance"))
+                .order_by(distance_cos)
+                .limit(5)
+                .all()
+            )
+            assert len(items_cos) == 2
+            assert items_cos[0].distance == 0.0
+
+        # drop indexes
+        l2_index.drop(engine)
+        cos_index.drop(engine)
